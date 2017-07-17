@@ -173,16 +173,16 @@ class MetaSmokeSearch ():
         return end_span() - start_span()
 
 
-class Halflife (ActionCableClient):
+class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
-        self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
+        self.checker = Halflife()
 
     def on_flag (self, ws, arg):
         logging.info('flag_log {message}'.format(message=arg['message']))
         link = arg['message']['flag_log']['post']['link']
         if link not in self.flagged:
-            self.check(arg['message']['flag_log']['post'])
+            self.checker.check(arg['message']['flag_log']['post'])
             self.flagged.update([link])
         else:
             logging.info('Already flagged {link}, not checking again'.format(
@@ -190,7 +190,11 @@ class Halflife (ActionCableClient):
 
     def on_not_flagged (self, ws, arg):
         logging.info('not_flagged {message}'.format(message=arg['message']))
-        self.check(arg['message']['not_flagged']['post'])
+        self.checker.check(arg['message']['not_flagged']['post'])
+
+class Halflife ():
+    def __init__ (self):
+        self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
 
     def check (self, message):
         logging.info('url: {url}'.format(url=message['link']))
@@ -302,4 +306,4 @@ if __name__ == '__main__':
     with open('halflife.conf', 'r') as conffile:
         conf = json.loads(conffile.read())
     MSKey = conf['metasmoke-key']
-    h = Halflife()
+    h = HalflifeClient()
