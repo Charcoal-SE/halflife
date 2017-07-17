@@ -164,7 +164,8 @@ class MetaSmokeSearch ():
         return wt
 
     def update_weights (self):
-        if self.tp_count() < self.blacklist_thres:
+        hits = len(self.result)
+        if hits < self.blacklist_thres and hits == self.tp_count():
             age_thres = datetime.datetime.utcnow() - datetime.timedelta(
                 days=self.auto_age_thres)
             for post in reversed(self.result):
@@ -176,7 +177,8 @@ class MetaSmokeSearch ():
                     break
                 wt = self.weight(post['id'])
                 post['weight'] = wt
-                if wt < self.autoflagging_threshold:
+                if wt < self.autoflagging_threshold and \
+                        not post['is_naa'] and not post['is_fp']:
                     logging.warn(
                         'Post {id} below auto ({weight}) {when} ago'.format(
                             id=post['id'], weight=wt,
