@@ -330,6 +330,7 @@ class Halflife ():
         for addr in ip:
             if addr == '':
                 continue
+            addr = addr.rstrip('.')
             raddr = '.'.join(reversed(addr.split('.'))) + '.in-addr.arpa.'
             rdns = _dig('cname', raddr)
             if rdns == ['']:
