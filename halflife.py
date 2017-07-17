@@ -131,10 +131,16 @@ class MetaSmokeSearch ():
         self.reqs = [req]
         self.result = json.loads(req.text)
         self.autoflagging_threshold = 280
+        self.blacklist_thres = 30
         self.below_auto = []
         ######## TODO: fetch remaining results if is_more=True
-        for post in self.result:
-            self.update_weight(post, self.below_auto)
+        if len(self.result) < self.blacklist_thres:
+            for post in self.result:
+                self.update_weight(post, self.below_auto)
+        else:
+            logging.info('{expr}: More than {thres} {scope} results '
+                '-- not getting weights'.format(
+                    expr=expr, thres=self.blacklist_thres, scope=scope))
 
     def update (self, expr, scope='body', regex=False):
         """
@@ -143,10 +149,18 @@ class MetaSmokeSearch ():
         other = MetaSmokeSearch(expr, scope=scope, regex=regex)
         self.reqs.append(other.reqs[0])
         below_auto_count = len(self.below_auto)
+        if len(other.result) < self.blacklist_thres:
+            update_weights = True
+        else:
+            logging.info('{expr}: More than {thres} {scope} results '
+                '-- not getting weights'.format(
+                    thres=self.blacklist_thres, scope=scope, expr=expr))
+            update_weights = False
         for k in other.result:
             if k['id'] not in self.result:
                 self.result.append(k)
-                self.update_weight(k, self.below_auto)
+                if update_weights:
+                    self.update_weight(k, self.below_auto)
         if len(self.below_auto) > below_auto_count:
             self.below_auto = sorted(self.below_auto, key=lambda x: x['id'])
         self.result = sorted(self.result, key=lambda x: x['id'])
@@ -225,10 +239,10 @@ class Halflife ():
         self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
 
     def check (self, message):
-        logging.info('url: {url}'.format(url=message['link']))
-        logging.info('title: {title}'.format(title=message['title']))
-        logging.info('body: {body}'.format(body=message['body']))
-        logging.info('username: {user}'.format(user=message['username']))
+        logging.debug('url: {url}'.format(url=message['link']))
+        logging.debug('title: {title}'.format(title=message['title']))
+        logging.debug('body: {body}'.format(body=message['body']))
+        logging.debug('username: {user}'.format(user=message['username']))
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
@@ -275,9 +289,7 @@ class Halflife ():
                 else:
                     logging.error('{host} is not blacklisted or watched'.format(
                         host=host))
-                #self.query(host)
-            ######## FIXME: temporary
-            self.query(host)
+                self.query(host)
             ######## TODO: examine tail
             self.dns(host)
 
