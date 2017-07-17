@@ -282,11 +282,15 @@ class Halflife ():
         def _dig (query, host):
             q = subprocess.run(['dig', '+short', '-t', query, host],
                 check=True, stdout=subprocess.PIPE, universal_newlines=True)
+            if q.stdout == '\n':
+                return []
             return q.stdout.rstrip('\n').split('\n')
         ns = _dig('ns', host)
         logging.warn('{host}: DNS servers {ns}'.format(host=host, ns=ns))
         ip = _dig('a', host)
         for addr in ip:
+            if addr == '':
+                continue
             raddr = '.'.join(reversed(addr.split('.'))) + '.in-addr.arpa.'
             rdns = _dig('cname', raddr)
             if rdns == ['']:
@@ -295,6 +299,8 @@ class Halflife ():
                 host=host, addr=addr, rdns=rdns))
         ip6 = _dig('aaaa', host)
         for addr in ip6:
+            if addr == '':
+                continue
             ######## TODO: reverse DNS
             logging.warn('{host}: IPv6 address {addr}'.format(
                 host=host, addr=addr))
