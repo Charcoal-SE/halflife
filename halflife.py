@@ -247,8 +247,10 @@ class Halflife (ActionCableClient):
             ######## FIXME: temporary
             self.query(host)
             ######## TODO: examine tail
+            self.dns(host)
 
     def listed(self, host_re, listfile):
+        ######## TODO: maybe replace with a metasmoke query
         try:
             subprocess.run(['fgrep', '-nis', host_re, listfile], check=True)
             return True
@@ -270,6 +272,28 @@ class Halflife (ActionCableClient):
         else:
             logging.warn('{host}: {tp}/{count} hits over {span}'.format(
                 host=host, tp=hits.tp_count(), count=count, span=hits.span()))
+
+    def dns (self, host):
+        ######## TODO: maybe replace with dnspython
+        def _dig (query, host):
+            q = subprocess.run(['dig', '+short', '-t', query, host],
+                check=True, stdout=subprocess.PIPE, universal_newlines=True)
+            return q.stdout.rstrip('\n').split('\n')
+        ns = _dig('ns', host)
+        logging.warn('{host}: DNS servers {ns}'.format(host=host, ns=ns))
+        ip = _dig('a', host)
+        for addr in ip:
+            raddr = '.'.join(reversed(addr.split('.'))) + '.in-addr.arpa.'
+            rdns = _dig('cname', raddr)
+            if rdns == ['']:
+                rdns = _dig('ptr', raddr)
+            logging.warn('{host}: IP address {addr} ({rdns})'.format(
+                host=host, addr=addr, rdns=rdns))
+        ip6 = _dig('aaaa', host)
+        for addr in ip6:
+            ######## TODO: reverse DNS
+            logging.warn('{host}: IPv6 address {addr}'.format(
+                host=host, addr=addr))
 
 
 if __name__ == '__main__':
