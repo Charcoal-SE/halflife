@@ -131,16 +131,11 @@ class MetaSmokeSearch ():
         self.reqs = [req]
         self.result = json.loads(req.text)
         self.autoflagging_threshold = 280
-        self.blacklist_thres = 30
+        self.blacklist_thres = 30  # 30 hits or more means blacklist
+        self.auto_age_thres = 180  # 180 days == 6 months
+        self.auto_thres = 20       # 20 hits in 180 days means blacklist
         self.below_auto = []
         ######## TODO: fetch remaining results if is_more=True
-        if len(self.result) < self.blacklist_thres:
-            for post in self.result:
-                self.update_weight(post, self.below_auto)
-        else:
-            logging.info('{expr}: More than {thres} {scope} results '
-                '-- not getting weights'.format(
-                    expr=expr, thres=self.blacklist_thres, scope=scope))
 
     def update (self, expr, scope='body', regex=False):
         """
@@ -148,21 +143,9 @@ class MetaSmokeSearch ():
         """
         other = MetaSmokeSearch(expr, scope=scope, regex=regex)
         self.reqs.append(other.reqs[0])
-        below_auto_count = len(self.below_auto)
-        if len(other.result) < self.blacklist_thres:
-            update_weights = True
-        else:
-            logging.info('{expr}: More than {thres} {scope} results '
-                '-- not getting weights'.format(
-                    thres=self.blacklist_thres, scope=scope, expr=expr))
-            update_weights = False
         for k in other.result:
             if k['id'] not in self.result:
                 self.result.append(k)
-                if update_weights:
-                    self.update_weight(k, self.below_auto)
-        if len(self.below_auto) > below_auto_count:
-            self.below_auto = sorted(self.below_auto, key=lambda x: x['id'])
         self.result = sorted(self.result, key=lambda x: x['id'])
 
     def weight (self, post_id):
@@ -180,11 +163,28 @@ class MetaSmokeSearch ():
         logging.info('Post {id} weight {weight}'.format(id=post_id, weight=wt))
         return wt
 
-    def update_weight (self, post, weightlist):
-        wt = self.weight(post['id'])
-        post['weight'] = wt
-        if wt < self.autoflagging_threshold:
-            weightlist.append(post)
+    def update_weights (self):
+        if self.tp_count() < self.blacklist_thres:
+            age_thres = datetime.datetime.utcnow() - datetime.timedelta(
+                days=self.auto_age_thres)
+            for post in reversed(self.result):
+                post_date = self.post_date(post)
+                if post_date < age_thres:
+                    logging.info(
+                        'Post {id} too old {date}, ignoring weight'.format(
+                            id=post['id'], date=post_date))
+                    break
+                wt = self.weight(post['id'])
+                post['weight'] = wt
+                if wt < self.autoflagging_threshold:
+                    logging.warn(
+                        'Post {id} below auto ({weight}) {when} ago'.format(
+                            id=post['id'], weight=wt,
+                                when=datetime.datetime.utcnow()-post_date))
+                    break
+        else:
+            logging.info('{count} results; not getting weights'.format(
+                count=len(self.result)))
 
     def count (self):
         return len(self.result)
@@ -200,19 +200,12 @@ class MetaSmokeSearch ():
     def tp_count (self):
         return len(self.tp())
 
+    def post_date (self, post):
+        return datetime.datetime.strptime(
+            post['created_at'][0:19], '%Y-%m-%dT%H:%M:%S')
+
     def span (self):
-        def _strptime(index):
-            return datetime.datetime.strptime(
-                self.result[index]['created_at'][0:19],
-                '%Y-%m-%dT%H:%M:%S')
-
-        def start_span ():
-            return _strptime(0)
-
-        def end_span ():
-            return _strptime(-1)
-
-        return end_span() - start_span()
+        return self.post_date(self.result[-1]) - self.post_date(self.result[0])
 
 
 class HalflifeClient (ActionCableClient):
@@ -311,11 +304,13 @@ class Halflife ():
         if count == 0:
             logging.warn('No metasmoke hits for {host}'.format(host=host))
         elif count == 1:
-            logging.warn('{host}: {tp}/{count} hit'.format(
-                host=host, tp=hits.tp_count(), count=count))
+            logging.warn('{host}: first hit'.format(host=host))
         else:
+            tp_count = hits.tp_count()
             logging.warn('{host}: {tp}/{count} hits over {span}'.format(
-                host=host, tp=hits.tp_count(), count=count, span=hits.span()))
+                host=host, tp=tp_count, count=count, span=hits.span()))
+            if tp_count < hits.blacklist_thres:
+                hits.update_weights()
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
