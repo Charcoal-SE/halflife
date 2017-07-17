@@ -130,7 +130,11 @@ class MetaSmokeSearch ():
             params=query)
         self.reqs = [req]
         self.result = json.loads(req.text)
+        self.autoflagging_threshold = 280
+        self.below_auto = []
         ######## TODO: fetch remaining results if is_more=True
+        for post in self.result:
+            self.update_weight(post, self.below_auto)
 
     def update (self, expr, scope='body', regex=False):
         """
@@ -138,11 +142,35 @@ class MetaSmokeSearch ():
         """
         other = MetaSmokeSearch(expr, scope=scope, regex=regex)
         self.reqs.append(other.reqs[0])
-        oldresult = [x['id'] for x in self.result]
+        below_auto_count = len(self.below_auto)
         for k in other.result:
-            if k['id'] not in oldresult:
-                oldresult.append(k)
-        self.result = sorted(oldresult, key=lambda x: x['id'])
+            if k['id'] not in self.result:
+                self.result.append(k)
+                self.update_weight(k, self.below_auto)
+        if len(self.below_auto) > below_auto_count:
+            self.below_auto = sorted(self.below_auto, key=lambda x: x['id'])
+        self.result = sorted(self.result, key=lambda x: x['id'])
+
+    def weight (self, post_id):
+        """
+        Brute-force autoflagging weight by scraping the post page (bletch)
+        """
+        req = requests.get(
+            'https://metasmoke.erwaysoftware.com/post/{id}'.format(id=post_id))
+        parts = req.text.split('<p class="text-muted">Reason weight: ')
+        if len(parts) == 1:
+            raise ValueError(
+                'Scraping reason weight failed. Text={text!r}'.format(
+                    text=req.text))
+        wt = int(parts[1].split('</p>')[0])
+        logging.info('Post {id} weight {weight}'.format(id=post_id, weight=wt))
+        return wt
+
+    def update_weight (self, post, weightlist):
+        wt = self.weight(post['id'])
+        post['weight'] = wt
+        if wt < self.autoflagging_threshold:
+            weightlist.append(post)
 
     def count (self):
         return len(self.result)
@@ -227,15 +255,15 @@ class Halflife ():
     def check_urls(self, urls):
         seen = set()
         for url in urls:
-            if url in seen:
-                continue
-            seen.update([url])
             parts = url.split('/', maxsplit=3)
             if len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
             proto, _, host, tail = parts
             if host.startswith('www.'):
                 host = host[4:]
+            if host in seen:
+                continue
+            seen.update([host])
             host_re = host.replace('.', r'\.')
             if host in self.domain_whitelist:
                 continue
