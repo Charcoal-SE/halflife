@@ -256,7 +256,9 @@ class Halflife ():
         for frag in string.split('http')[1:]:
             logging.info('examining fragment {frag}'.format(frag=frag))
             if frag.startswith('s://') or frag.startswith('://'):
-                urls.append('http' + frag.split()[0])
+                candidate = 'http' + frag.split()[0]
+                candidate.rstrip('">')
+                urls.append(candidate)
         return urls
 
     def check_urls(self, urls):
