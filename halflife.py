@@ -12,6 +12,8 @@ import websocket
 MSKey = 'invalid'
 
 
+######## TODO: maybe replace with actioncable-zwei
+# https://github.com/tobiasfeistmantl/python-actioncable-zwei
 class ActionCableClient ():
     def __init__(
             self,
@@ -257,6 +259,7 @@ class Halflife (ActionCableClient):
         host_re = r'\b{host}\b'.format(host=host.replace('.', r'\.'))
         host_re = host.replace('.', r'\.')  ######## FIXME: temporary
         hits = MetaSmokeSearch(host_re, scope='title', regex=True)
+        ######## TODO: separate title vs body results
         hits.update(host_re, scope='body', regex=True)
         count = hits.count()
         if count == 0:

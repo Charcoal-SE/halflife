@@ -1,4 +1,4 @@
-Halflife t<sub>2</sub>
+Halflife t<sub>½</sub>
 ================
 
 This is a simple back-end client to help analyze new Smoke Detector hits.
@@ -9,6 +9,7 @@ before.
 
 Down the line, I hope to be able to enable automatic blacklisting when a
 domain name passes the criteria we have for updating the blacklists.
+
 
 Configuration
 -----------
