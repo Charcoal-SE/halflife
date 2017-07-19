@@ -237,8 +237,9 @@ class Halflife ():
     def check (self, message):
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
+        post_id = message['id']
         logging.warn('Check post {id} https:{link} ({weight})'.format(
-            id=message['id'], link=message[':meta']['link'], weight=weight))
+            id=post_id, link=message[':meta']['link'], weight=weight))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
@@ -248,7 +249,9 @@ class Halflife ():
         # (currently a MetaSmokeSearch variable, should be declared here?)
         if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
                 for x in message[':reasons']]):
-            logging.error('Blacklisted contents but post still below auto')
+            logging.error(
+                '{id}: Blacklisted contents but post still below auto'.format(
+                    id=post_id))
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
@@ -306,23 +309,28 @@ class Halflife ():
             seen.update([host])
             host_re = host.replace('.', r'\.')
             if host in self.domain_whitelist:
+                result[url]['domain_check'] = {host: 'whitelisted'}
                 continue
             elif self.listed(host_re, 'blacklisted_websites.txt'):
-                logging.warn('{host} is blacklisted'.format(host=host))
+                result[url]['domain_check'] = {host: 'blacklisted'}
+                #logging.warn('{host} is blacklisted'.format(host=host))
             else:
                 if self.listed(host, 'watched_keywords.txt'):
-                    logging.warn('{host} is watched'.format(host=host))
+                    result[url]['domain_check'] = {host: 'watched'}
+                    #logging.warn('{host} is watched'.format(host=host))
                 else:
-                    logging.error('{host} is not blacklisted or watched'.format(
-                        host=host))
+                    result[url]['domain_check'] = {host: None}
+                    #logging.error('{host} is not blacklisted or watched'.format(
+                    #    host=host))
                 self.query(host)
             ######## TODO: examine tail
-            self.dns(host)
+            result[url]['dns_check'] = self.dns(host)
+        return result
 
     def listed(self, host_re, listfile):
         ######## TODO: maybe replace with a metasmoke query
         try:
-            subprocess.run(['fgrep', '-nis', host_re, listfile], check=True)
+            subprocess.run(['fgrep', '-qis', host_re, listfile], check=True)
             return True
         except subprocess.CalledProcessError:
             return False
