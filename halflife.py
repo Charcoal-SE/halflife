@@ -236,14 +236,19 @@ class Halflife ():
 
     def check (self, message):
         self.get_post_metainformation(message)
+        weight = message[':meta']['reason_weight']
         logging.warn('Check post {id} https:{link} ({weight})'.format(
-            id=message['id'], link=message[':meta']['link'],
-            weight=message[':meta']['reason_weight']))
+            id=message['id'], link=message[':meta']['link'], weight=weight))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
         logging.debug('username: {user}'.format(user=message['username']))
         self.get_post_reasons(message)
+        ######## TODO: don't hardcode limit
+        # (currently a MetaSmokeSearch variable, should be declared here?)
+        if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
+                for x in message[':reasons']]):
+            logging.error('Blacklisted contents but post still below auto')
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
