@@ -243,6 +243,7 @@ class Halflife ():
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
         logging.debug('username: {user}'.format(user=message['username']))
+        self.get_post_reasons(message)
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
@@ -255,13 +256,21 @@ class Halflife ():
         if len(urls) > 0:
             self.check_urls(urls)
 
-    def get_post_metainformation(self, message):
+    def api_id_query(self, message, route_pattern):
         id = message['id']
         req = requests.get(
-            'https://metasmoke.erwaysoftware.com/api/posts/{id}'.format(id=id),
+            'https://metasmoke.erwaysoftware.com/{route}'.format(
+                route=route_pattern.format(id=id)),
             params={'key': MSKey})
-        result = json.loads(req.text)
-        message[':meta'] = result['items'][0]
+        return json.loads(req.text)
+
+    def get_post_metainformation(self, message):
+        meta = self.api_id_query(message, '/api/posts/{id}')
+        message[':meta'] = meta['items'][0]
+
+    def get_post_reasons(self, message):
+        reasons = self.api_id_query(message, '/api/post/{id}/reasons')
+        message[':reasons'] = reasons['items']
 
     def pick_urls(self, string):
         """
