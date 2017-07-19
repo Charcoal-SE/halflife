@@ -268,16 +268,35 @@ class Halflife ():
                     logging.debug(
                         '{id}: No domain_check result for {url}'.format(
                             id=post_id, url=url))
-                    continue
-                for host in url_result[url]['domain_check']:
-                    if not url_result[url]['domain_check'][host]:
-                        logging.error(
-                            '{id}: {host} is not blacklisted or watched'.format(
-                                id=post_id, host=host))
-                    else:
-                        logging.warn('{id}: {host} is {what}'.format(
-                            id=post_id, host=host,
-                            what=url_result[url]['domain_check'][host]))
+                else:
+                    for host in url_result[url]['domain_check']:
+                        if not url_result[url]['domain_check'][host]:
+                            logging.error('{id}: {host} is not blacklisted '
+                                'or watched'.format(id=post_id, host=host))
+                        else:
+                            logging.warn('{id}: {host} is {what}'.format(
+                                id=post_id, host=host,
+                                what=url_result[url]['domain_check'][host]))
+                if 'dns_check' not in url_result[url] or \
+                        'host' not in url_result[url]['dns_check']:
+                    logging.debug('{id}: no dns_check result for {url}'.format(
+                        id=post_id, url=url))
+                else:
+                    host = url_result[url]['dns_check']['host']
+                    logging.warn('{id}: {host}: ns {ns}'.format(
+                        id=post_id, host=host,
+                        ns=url_result[url]['dns_check']['ns']))
+                    for ip in url_result[url]['dns_check']['a']:
+                        if ip in url_result[url]['dns_check']['rdns']:
+                            rdns = url_result[url]['dns_check']['rdns'][ip]
+                            if rdns == None:
+                                rdns = ''
+                            if len(rdns) == 1:
+                                rdns = rdns[0]
+                        else:
+                            rdns = ''
+                        logging.warn('{id}: {host}: ip {ip} ({rdns})'.format(
+                            id=post_id, host=host, ip=ip, rdns=rdns))
 
     def api_id_query(self, message, route_pattern):
         id = message['id']
@@ -374,26 +393,38 @@ class Halflife ():
             if q.stdout == '\n':
                 return []
             return q.stdout.rstrip('\n').split('\n')
-        ns = _dig('ns', host)
-        logging.warn('{host}: DNS servers {ns}'.format(host=host, ns=ns))
+
+        def isip (addr):
+            for ch in ['.'] + [str(i) for i in range(0,10)]:
+                addr = addr.replace(ch, '')
+            return addr == ''
+
+        result = {'host': host, 'ns': _dig('ns', host)}
+
+        ######## TODO: soa, extract TTL
+
         ip = _dig('a', host)
+        result['a'] = ip
+        result['rdns'] = dict()
         for addr in ip:
             if addr == '':
                 continue
-            addr = addr.rstrip('.')
-            raddr = '.'.join(reversed(addr.split('.'))) + '.in-addr.arpa.'
-            rdns = _dig('cname', raddr)
-            if rdns == ['']:
-                rdns = _dig('ptr', raddr)
-            logging.warn('{host}: IP address {addr} ({rdns})'.format(
-                host=host, addr=addr, rdns=rdns))
+            cleanaddr = addr.rstrip('.')
+            if isip(cleanaddr):
+                raddr = '.'.join(
+                    reversed(cleanaddr.split('.'))) + '.in-addr.arpa.'
+                rdns = _dig('cname', raddr)
+                if rdns == ['']:
+                    rdns = _dig('ptr', raddr)
+                if rdns == ['']:
+                    rdns = None
+                result['rdns'][addr] = rdns
+
         ip6 = _dig('aaaa', host)
-        for addr in ip6:
-            if addr == '':
-                continue
-            ######## TODO: reverse DNS
-            logging.warn('{host}: IPv6 address {addr}'.format(
-                host=host, addr=addr))
+        result['aaaa'] = ip6
+        ######## TODO: reverse DNS
+
+        return result
 
 
 if __name__ == '__main__':
