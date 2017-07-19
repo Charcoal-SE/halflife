@@ -262,7 +262,22 @@ class Halflife ():
             urls.update(self.pick_urls(message['body']))
         logging.info('urls are {urls!r}'.format(urls=urls))
         if len(urls) > 0:
-            self.check_urls(urls)
+            url_result = self.check_urls(urls)
+            for url in url_result:
+                if 'domain_check' not in url_result[url]:
+                    logging.debug(
+                        '{id}: No domain_check result for {url}'.format(
+                            id=post_id, url=url))
+                    continue
+                for host in url_result[url]['domain_check']:
+                    if not url_result[url]['domain_check'][host]:
+                        logging.error(
+                            '{id}: {host} is not blacklisted or watched'.format(
+                                id=post_id, host=host))
+                    else:
+                        logging.warn('{id}: {host} is {what}'.format(
+                            id=post_id, host=host,
+                            what=url_result[url]['domain_check'][host]))
 
     def api_id_query(self, message, route_pattern):
         id = message['id']
@@ -297,7 +312,9 @@ class Halflife ():
 
     def check_urls(self, urls):
         seen = set()
+        result = dict()
         for url in urls:
+            result[url] = {}
             parts = url.split('/', maxsplit=3)
             if len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
@@ -313,15 +330,11 @@ class Halflife ():
                 continue
             elif self.listed(host_re, 'blacklisted_websites.txt'):
                 result[url]['domain_check'] = {host: 'blacklisted'}
-                #logging.warn('{host} is blacklisted'.format(host=host))
             else:
                 if self.listed(host, 'watched_keywords.txt'):
                     result[url]['domain_check'] = {host: 'watched'}
-                    #logging.warn('{host} is watched'.format(host=host))
                 else:
                     result[url]['domain_check'] = {host: None}
-                    #logging.error('{host} is not blacklisted or watched'.format(
-                    #    host=host))
                 self.query(host)
             ######## TODO: examine tail
             result[url]['dns_check'] = self.dns(host)
