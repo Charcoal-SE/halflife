@@ -233,6 +233,8 @@ class HalflifeClient (ActionCableClient):
 class Halflife ():
     def __init__ (self):
         self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
+        ######## TODO: load a pickle?
+        self.host_lookup_cache = dict()
 
     def check (self, message):
         self.get_post_metainformation(message)
@@ -260,10 +262,15 @@ class Halflife ():
                 for frag in message['body'].split('<a href="')[1:]])
         elif 'http://' in message['body'] or 'https://' in message['body']:
             urls.update(self.pick_urls(message['body']))
+
         logging.info('urls are {urls!r}'.format(urls=urls))
+
         if len(urls) > 0:
+
             url_result = self.check_urls(urls)
+
             for url in url_result:
+
                 if 'domain_check' not in url_result[url]:
                     logging.debug(
                         '{id}: No domain_check result for {url}'.format(
@@ -277,26 +284,33 @@ class Halflife ():
                             logging.warn('{id}: {host} is {what}'.format(
                                 id=post_id, host=host,
                                 what=url_result[url]['domain_check'][host]))
+
                 if 'dns_check' not in url_result[url] or \
                         'host' not in url_result[url]['dns_check']:
                     logging.debug('{id}: no dns_check result for {url}'.format(
                         id=post_id, url=url))
                 else:
                     host = url_result[url]['dns_check']['host']
-                    logging.warn('{id}: {host}: ns {ns}'.format(
-                        id=post_id, host=host,
-                        ns=url_result[url]['dns_check']['ns']))
-                    for ip in url_result[url]['dns_check']['a']:
-                        if ip in url_result[url]['dns_check']['rdns']:
-                            rdns = url_result[url]['dns_check']['rdns'][ip]
-                            if rdns == None:
+                    if url_result[url]['dns_check'][':cached']:
+                        logging.info('{id}: {host}: cached DNS result, '
+                            'not reporting again'.format(id=post_id, host=host))
+                    else:
+                        logging.warn('{id}: {host}: ns {ns}'.format(
+                            id=post_id, host=host,
+                            ns=url_result[url]['dns_check']['ns']))
+                        for ip in url_result[url]['dns_check']['a']:
+                            if ip in url_result[url]['dns_check']['rdns']:
+                                rdns = url_result[url]['dns_check']['rdns'][ip]
+                                if rdns == None:
+                                    rdns = ''
+                                if len(rdns) == 1:
+                                    rdns = rdns[0]
+                            else:
                                 rdns = ''
-                            if len(rdns) == 1:
-                                rdns = rdns[0]
-                        else:
-                            rdns = ''
-                        logging.warn('{id}: {host}: ip {ip} ({rdns})'.format(
-                            id=post_id, host=host, ip=ip, rdns=rdns))
+                            logging.warn('{id}: {host}: ip {ip} '
+                                '({rdns})'.format(
+                                    id=post_id, host=host, ip=ip, rdns=rdns))
+
                 if 'metasmoke' not in url_result[url]:
                     logging.debug('{id}: no metasmoke result for {url}'.format(
                         id=post_id, url=url))
@@ -375,7 +389,9 @@ class Halflife ():
                 result[url]['metasmoke'] = self.query(host)
 
             ######## TODO: examine tail
+
             result[url]['dns_check'] = self.dns(host)
+
         return result
 
     def listed(self, host_re, listfile):
@@ -410,7 +426,11 @@ class Halflife ():
                 addr = addr.replace(ch, '')
             return addr == ''
 
-        result = {'host': host, 'ns': _dig('ns', host)}
+        if host in self.host_lookup_cache:
+            self.host_lookup_cache[host][':cached'] = True
+            return self.host_lookup_cache[host]
+
+        result = {'host': host, 'ns': _dig('ns', host), ':cached': False}
 
         ######## TODO: soa, extract TTL
 
@@ -433,8 +453,9 @@ class Halflife ():
 
         ip6 = _dig('aaaa', host)
         result['aaaa'] = ip6
-        ######## TODO: reverse DNS
+        ######## TODO: reverse DNS for IPv6
 
+        self.host_lookup_cache[host] = result
         return result
 
 
