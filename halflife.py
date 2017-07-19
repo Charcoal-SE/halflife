@@ -229,11 +229,15 @@ class HalflifeClient (ActionCableClient):
         logging.info('not_flagged {message}'.format(message=arg['message']))
         self.checker.check(arg['message']['not_flagged']['post'])
 
+
 class Halflife ():
     def __init__ (self):
         self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
 
     def check (self, message):
+        self.get_post_metainformation(message)
+        logging.warn('Checking post {id} ({weight})'.format(
+            id=message['id'], weight=message[':meta']['reason_weight']))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
@@ -249,6 +253,14 @@ class Halflife ():
         logging.info('urls are {urls!r}'.format(urls=urls))
         if len(urls) > 0:
             self.check_urls(urls)
+
+    def get_post_metainformation(self, message):
+        id = message['id']
+        req = requests.get(
+            'https://metasmoke.erwaysoftware.com/api/posts/{id}'.format(id=id),
+            params={'key': MSKey})
+        result = json.loads(req.text)
+        message[':meta'] = result['items'][0]
 
     def pick_urls(self, string):
         """
