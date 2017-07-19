@@ -236,8 +236,9 @@ class Halflife ():
 
     def check (self, message):
         self.get_post_metainformation(message)
-        logging.warn('Checking post {id} ({weight})'.format(
-            id=message['id'], weight=message[':meta']['reason_weight']))
+        logging.warn('Check post {id} https:{link} ({weight})'.format(
+            id=message['id'], link=message[':meta']['link'],
+            weight=message[':meta']['reason_weight']))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
