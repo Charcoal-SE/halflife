@@ -272,6 +272,8 @@ class Halflife ():
             if frag.startswith('s://') or frag.startswith('://'):
                 candidate = 'http' + frag.split()[0]
                 candidate.rstrip('">')
+                if '%20' in candidate:
+                    continue
                 urls.append(candidate)
         return urls
 
