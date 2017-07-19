@@ -297,6 +297,24 @@ class Halflife ():
                             rdns = ''
                         logging.warn('{id}: {host}: ip {ip} ({rdns})'.format(
                             id=post_id, host=host, ip=ip, rdns=rdns))
+                if 'metasmoke' not in url_result[url]:
+                    logging.debug('{id}: no metasmoke result for {url}'.format(
+                        id=post_id, url=url))
+                else:
+                    mshits = url_result[url]['metasmoke']
+                    count = mshits.count()
+                    if count == 0:
+                        logging.warn('{id}: {host}: No metasmoke hits'.format(
+                            id=post_id, host=host))
+                    elif count == 1:
+                        logging.warn('{id}: {host}: first hit'.format(
+                            id=post_id, host=host))
+                    else:
+                        tp_count = mshits.tp_count()
+                        logging.warn(
+                            '{id}: {host}: {tp}/{all} hits over {span}'.format(
+                                id=post_id, host=host, tp=tp_count, all=count,
+                                span=mshits.span()))
 
     def api_id_query(self, message, route_pattern):
         id = message['id']
@@ -354,7 +372,8 @@ class Halflife ():
                     result[url]['domain_check'] = {host: 'watched'}
                 else:
                     result[url]['domain_check'] = {host: None}
-                self.query(host)
+                result[url]['metasmoke'] = self.query(host)
+
             ######## TODO: examine tail
             result[url]['dns_check'] = self.dns(host)
         return result
@@ -373,17 +392,9 @@ class Halflife ():
         hits = MetaSmokeSearch(host_re, scope='title', regex=True)
         ######## TODO: separate title vs body results
         hits.update(host_re, scope='body', regex=True)
-        count = hits.count()
-        if count == 0:
-            logging.warn('No metasmoke hits for {host}'.format(host=host))
-        elif count == 1:
-            logging.warn('{host}: first hit'.format(host=host))
-        else:
-            tp_count = hits.tp_count()
-            logging.warn('{host}: {tp}/{count} hits over {span}'.format(
-                host=host, tp=tp_count, count=count, span=hits.span()))
-            if tp_count < hits.blacklist_thres:
-                hits.update_weights()
+        if hits.count() > 1 and hits.tp_count() < hits.blacklist_thres:
+            hits.update_weights()
+        return hits
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
