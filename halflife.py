@@ -380,6 +380,8 @@ class Halflife ():
             if len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
             proto, _, host, tail = parts
+            if host is None:
+                continue
             if host.startswith('www.'):
                 host = host[4:]
             if host in seen:
