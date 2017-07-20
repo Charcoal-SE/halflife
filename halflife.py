@@ -237,6 +237,13 @@ class Halflife ():
         self.host_lookup_cache = dict()
 
     def check (self, message):
+        def strip_code_blocks (post):
+            frags = post.split('<pre><code>')
+            body = [frags[0]]
+            for frag in frags[1:]:
+                body.append(frag.split('</code></pre>')[1])
+            return '\n'.join(body)
+
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
         post_id = message['id']
@@ -255,13 +262,16 @@ class Halflife ():
                 '{id}: Blacklisted contents but post still below auto'.format(
                     id=post_id))
         urls = set()
+        cleaned_body = strip_code_blocks(message['body'])
+        logging.info('Body with code blocks stripped is {0!r}'.format(
+            cleaned_body))
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
-        if '<a href="' in message['body']:
+        if '<a href="' in cleaned_body:
             urls.update([frag.split('"')[0]
-                for frag in message['body'].split('<a href="')[1:]])
-        elif 'http://' in message['body'] or 'https://' in message['body']:
-            urls.update(self.pick_urls(message['body']))
+                for frag in cleaned_body.split('<a href="')[1:]])
+        elif 'http://' in cleaned_body or 'https://' in cleaned_body:
+            urls.update(self.pick_urls(cleaned_body))
 
         logging.info('urls are {urls!r}'.format(urls=urls))
 
