@@ -130,6 +130,8 @@ class MetaSmokeSearch ():
             params=query)
         self.reqs = [req]
         self.result = json.loads(req.text)
+        if 'error' in self.result:
+            raise ValueError(self.result['error'])
         self.autoflagging_threshold = 280
         self.blacklist_thres = 30  # 30 hits or more means blacklist
         self.auto_age_thres = 180  # 180 days == 6 months
