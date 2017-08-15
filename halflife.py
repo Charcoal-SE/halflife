@@ -382,7 +382,8 @@ class Halflife ():
             if len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
             proto, _, host, tail = parts
-            if host is None or '%20' in proto or '%20' in host:
+            if host is None or '%20' in proto or '%20' in host \
+                    or '%3' in proto or '%3' in host:
                 continue
             if host.startswith('www.'):
                 host = host[4:]
@@ -445,6 +446,10 @@ class Halflife ():
             return self.host_lookup_cache[host]
 
         result = {'host': host, 'ns': _dig('ns', host), ':cached': False}
+
+        if any([x.endswith('root-servers.net.') for x in result['ns']]):
+            logging.warn('NS contains root-servers.net.; abandoning')
+            return result
 
         ######## TODO: soa, extract TTL
 
