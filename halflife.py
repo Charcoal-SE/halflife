@@ -114,104 +114,6 @@ class ActionCableClient ():
         logging.info('close')
 
 
-class MetaSmokeSearch ():
-    def __init__ (self, expr, scope='body', regex=False):
-        regexstr = '1' if regex else '0'
-        if scope == 'body':
-            query = {'body': expr, 'body_is_regex': regexstr}
-        elif scope == 'title':
-            query = {'title': expr, 'title_is_regex': regexstr}
-        else:
-            raise KeyError(
-                'scope must be either "body" or "title", not {scope}'.format(
-                    scope=scope))
-        req = requests.get(
-            'https://metasmoke.erwaysoftware.com/search.json',
-            params=query)
-        self.reqs = [req]
-        self.result = json.loads(req.text)
-        if 'error' in self.result:
-            raise ValueError(self.result['error'])
-        self.autoflagging_threshold = 280
-        self.blacklist_thres = 30  # 30 hits or more means blacklist
-        self.auto_age_thres = 180  # 180 days == 6 months
-        self.auto_thres = 20       # 20 hits in 180 days means blacklist
-        self.below_auto = []
-        ######## TODO: fetch remaining results if is_more=True
-
-    def update (self, expr, scope='body', regex=False):
-        """
-        Run another query and merge in results.
-        """
-        other = MetaSmokeSearch(expr, scope=scope, regex=regex)
-        self.reqs.append(other.reqs[0])
-        for k in other.result:
-            if k['id'] not in self.result:
-                self.result.append(k)
-        self.result = sorted(self.result, key=lambda x: x['id'])
-
-    def weight (self, post_id):
-        """
-        Brute-force autoflagging weight by scraping the post page (bletch)
-        """
-        req = requests.get(
-            'https://metasmoke.erwaysoftware.com/post/{id}'.format(id=post_id))
-        parts = req.text.split('<p class="text-muted">Reason weight: ')
-        if len(parts) == 1:
-            raise ValueError(
-                'Scraping reason weight failed. Text={text!r}'.format(
-                    text=req.text))
-        wt = int(parts[1].split('</p>')[0])
-        logging.info('Post {id} weight {weight}'.format(id=post_id, weight=wt))
-        return wt
-
-    def update_weights (self):
-        hits = len(self.result)
-        if hits < self.blacklist_thres and hits == self.tp_count():
-            age_thres = datetime.datetime.utcnow() - datetime.timedelta(
-                days=self.auto_age_thres)
-            for post in reversed(self.result):
-                post_date = self.post_date(post)
-                if post_date < age_thres:
-                    logging.info(
-                        'Post {id} too old {date}, ignoring weight'.format(
-                            id=post['id'], date=post_date))
-                    break
-                wt = self.weight(post['id'])
-                post['weight'] = wt
-                if wt < self.autoflagging_threshold and \
-                        not post['is_naa'] and not post['is_fp']:
-                    logging.warn(
-                        'Post {id} below auto ({weight}) {when} ago'.format(
-                            id=post['id'], weight=wt,
-                                when=datetime.datetime.utcnow()-post_date))
-                    break
-        else:
-            logging.info('{count} results; not getting weights'.format(
-                count=len(self.result)))
-
-    def count (self):
-        return len(self.result)
-
-    def tp (self):
-        """
-        This is "proper" true positives, as in "is_tp" is true and neither
-        "is_naa" nor "is_fp" are also true.
-        """
-        return [x for x in self.result
-            if x['is_tp'] and not x['is_naa'] and not x['is_fp']]
-
-    def tp_count (self):
-        return len(self.tp())
-
-    def post_date (self, post):
-        return datetime.datetime.strptime(
-            post['created_at'][0:19], '%Y-%m-%dT%H:%M:%S')
-
-    def span (self):
-        return self.post_date(self.result[-1]) - self.post_date(self.result[0])
-
-
 class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
@@ -232,11 +134,20 @@ class HalflifeClient (ActionCableClient):
         self.checker.check(arg['message']['not_flagged']['post'])
 
 
+class MetasmokeApiError(Exception):
+    pass
+
+
 class Halflife ():
     def __init__ (self):
         self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
+
+        self.autoflagging_threshold = 280
+        self.blacklist_thres = 30  # 30 hits or more means blacklist
+        self.auto_age_thres = 180  # 180 days == 6 months
+        self.auto_thres = 20       # 20 hits in 180 days means blacklist
 
     def check (self, message):
         def strip_code_blocks (post):
@@ -327,8 +238,8 @@ class Halflife ():
                     logging.debug('{id}: no metasmoke result for {url}'.format(
                         id=post_id, url=url))
                 else:
-                    mshits = url_result[url]['metasmoke']
-                    count = mshits.count()
+                    hits = url_result[url]['metasmoke']
+                    count = len(hits['hits'])
                     if count == 0:
                         logging.warn('{id}: {host}: No metasmoke hits'.format(
                             id=post_id, host=host))
@@ -336,26 +247,38 @@ class Halflife ():
                         logging.warn('{id}: {host}: first hit'.format(
                             id=post_id, host=host))
                     else:
-                        tp_count = mshits.tp_count()
                         logging.warn(
-                            '{id}: {host}: {tp}/{all} hits over {span}'.format(
-                                id=post_id, host=host, tp=tp_count, all=count,
-                                span=mshits.span()))
+                            '{id}: {host}: {tp}/{all} over {span}'.format(
+                                id=post_id, host=host, tp=hits['tp_count'],
+                                all=count, span=hits['timespan']))
 
-    def api_id_query(self, message, route_pattern):
-        id = message['id']
+
+    def api_query(self, route, filter=None):
+        logging.info('query: /api/{route}'.format(route=route))
+        params = {'key': MSKey}
+        if filter:
+            params['filter'] = filter
         req = requests.get(
-            'https://metasmoke.erwaysoftware.com/{route}'.format(
-                route=route_pattern.format(id=id)),
-            params={'key': MSKey})
-        return json.loads(req.text)
+            'https://metasmoke.erwaysoftware.com/api/{route}'.format(
+                route=route),
+            params=params)
+        result = json.loads(req.text)
+        logging.info('query result: {0!r}'.format(result))
+        if 'error' in result:
+            raise MetasmokeApiError(error_message)
+        return result
 
-    def get_post_metainformation(self, message):
-        meta = self.api_id_query(message, '/api/posts/{id}')
-        message[':meta'] = meta['items'][0]
+    def _api_id_query(self, message, route_pattern, filter=None):
+        id = message['id']
+        return self.api_query(route_pattern.format(id), filter=filter)
+
+    def get_post_metainformation(self, message, filter=None):
+        if ':meta' not in message:
+            meta = self._api_id_query(message, 'posts/{0}', filter=filter)
+            message[':meta'] = meta['items'][0]
 
     def get_post_reasons(self, message):
-        reasons = self.api_id_query(message, '/api/post/{id}/reasons')
+        reasons = self._api_id_query(message, 'post/{0}/reasons')
         message[':reasons'] = reasons['items']
 
     def pick_urls(self, string):
@@ -401,7 +324,7 @@ class Halflife ():
                     result[url]['domain_check'] = {host: 'watched'}
                 else:
                     result[url]['domain_check'] = {host: None}
-                result[url]['metasmoke'] = self.query(host)
+                result[url]['metasmoke'] = self.domain_query(host)
 
             ######## TODO: examine tail
 
@@ -417,15 +340,58 @@ class Halflife ():
         except subprocess.CalledProcessError:
             return False
 
-    def query (self, host):
-        host_re = r'\b{host}\b'.format(host=host.replace('.', r'\.'))
-        host_re = host.replace('.', r'\.')  ######## FIXME: temporary
-        hits = MetaSmokeSearch(host_re, scope='title', regex=True)
-        ######## TODO: separate title vs body results
-        hits.update(host_re, scope='body', regex=True)
-        if hits.count() > 1 and hits.tp_count() < hits.blacklist_thres:
-            hits.update_weights()
-        return hits
+    def domain_query (self, domain):
+        domain_re = r'(^|[^A-Za-z0-9_]){domain}([^A-Za-z0-9_]|$)'.format(
+            domain=domain.replace('.', r'\.'))
+        ######## FIXME: 'per_page': 100; add a filter
+        hits_query = self.api_query(
+            'posts/search/regex?query={re}'.format(re=domain_re))
+        if 'items' not in hits_query:
+            raise MetasmokeApiError('No "items" in {0!r}'.format(hits_query))
+        hits = hits_query['items']
+        tp = [x for x in hits
+            if x['is_tp'] and not x['is_naa'] and not x['is_fp']]
+        # Don't check weights if we can't blacklist anything anyway
+        # or if the blacklisting criteria are triggered regardless of weights
+        weight = None
+        if len(hits) > 1 and len(tp) < self.blacklist_thres:
+            hits_details = self.api_query('posts/{ids}'.format(
+                ids=';'.join([str(x['id']) for x in hits])))
+            weight = dict()
+            for hit in hits_details['items']:
+                weight[hit['id']] = hit['reason_weight']
+        post_date_max = None
+        post_date_min = None
+        for hit in hits:
+            self.get_post_metainformation(
+                ######## FIXME: ad-hoc filter
+                hit, filter='AAAAAAAAAAO//gAAAAAAAUA=')
+            post_date = datetime.datetime.strptime(
+                hit[':meta']['created_at'][0:19], '%Y-%m-%dT%H:%M:%S')
+            if post_date_max is None or post_date > post_date_max:
+                post_date_max = post_date
+            if post_date_min is None or post_date < post_date_min:
+                post_date_min = post_date
+            if weight:
+                wt = weight[hit['id']]
+                hit['weight'] = wt
+                if wt < self.autoflagging_threshold and \
+                        not hit['is_naa'] and not hit['is_fp']:
+                    ######## TODO: don't log if it's all FP; include verdicts
+                    logging.warn(
+                        'Post {id} below auto ({weight}) {span} ago'.format(
+                            id=hit['id'], weight=wt,
+                            span=datetime.datetime.now()-post_date))
+            else:
+                logging.info('{count} results; not getting weights'.format(
+                count=len(hits)))
+        ######## TODO: properly encapsulate result in a separate object
+        if post_date_min and post_date_max:
+            timespan = post_date_max - post_date_min
+        else:
+            timespan = datetime.timedelta()
+        result = {'hits': hits, 'timespan': timespan, 'tp_count': len(tp)}
+        return result
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
