@@ -317,10 +317,10 @@ class Halflife ():
             if host in self.domain_whitelist:
                 result[url]['domain_check'] = {host: 'whitelisted'}
                 continue
-            elif self.listed(host_re, 'blacklisted_websites.txt'):
+            elif self.listed('^' + host_re + '$', 'blacklisted_websites.txt'):
                 result[url]['domain_check'] = {host: 'blacklisted'}
             else:
-                if self.listed(host, 'watched_keywords.txt'):
+                if self.listed('\t' + host_re + '$', 'watched_keywords.txt'):
                     result[url]['domain_check'] = {host: 'watched'}
                 else:
                     result[url]['domain_check'] = {host: None}
@@ -334,8 +334,9 @@ class Halflife ():
 
     def listed(self, host_re, listfile):
         ######## TODO: maybe replace with a metasmoke query
+        ######## FIXME: if the listed regex is broader, this will miss it
         try:
-            subprocess.run(['fgrep', '-qis', host_re, listfile], check=True)
+            subprocess.run(['grep', '-qis', host_re, listfile], check=True)
             return True
         except subprocess.CalledProcessError:
             return False
