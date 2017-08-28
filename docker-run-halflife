@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+for f in SmokeDetector/tailsocket.access.log \
+        SmokeDetector/tailsocket.application.log halflife.log
+do
+    install -o halflife -m 644 /dev/null /"$f"
+done
+su halflife <<':'
+    tailsocket-server &
+    cd SmokeDetector
+    python3 ../halflife/halflife.py >../halflife.log
+:
