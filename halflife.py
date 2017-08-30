@@ -335,10 +335,14 @@ class Halflife ():
     def listed(self, host_re, listfile):
         ######## TODO: maybe replace with a metasmoke query
         ######## FIXME: if the listed regex is broader, this will miss it
+        host_re = host_re.replace('\\', '\\\\')
         try:
+            logging.debug('running {0!r}'.format(['grep', '-qis', host_re, listfile]))
             subprocess.run(['grep', '-qis', host_re, listfile], check=True)
+            logging.debug('returning True')
             return True
         except subprocess.CalledProcessError:
+            logging.debug('returning False')
             return False
 
     def domain_query (self, domain):
