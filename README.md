@@ -34,3 +34,16 @@ of the one where you have checked out `halflife`.
 	cd ../SmokeDetector
 	ln -s ../halflife/halflife.conf .
 	./halflife.py
+
+
+Docker Image
+------------
+
+There is a `Dockerfile` here which creates a runnable image for trying
+this out.
+
+https://hub.docker.com/r/tripleee/halflife/
+
+The Docker image exposes its output on a websocket on port 8888.
+
+*The websocket output format is totally ad hoc and **will** change.*

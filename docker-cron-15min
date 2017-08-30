@@ -1,0 +1,3 @@
+#!/bin/sh
+
+su - halflife sh -c 'cd /home/halflife/SmokeDetector && exec git pull -q'
