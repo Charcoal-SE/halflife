@@ -9,16 +9,15 @@ import requests
 import websocket
 
 
-MSKey = 'invalid'
-
-
 ######## TODO: maybe replace with actioncable-zwei
 # https://github.com/tobiasfeistmantl/python-actioncable-zwei
 class ActionCableClient ():
     def __init__(
             self,
+            key=None,
             ws_url='wss://metasmoke.erwaysoftware.com/cable',
             enable_trace=False):
+        self.key = key
         if enable_trace:
             websocket.enableTrace(True)
         self.ws = websocket.WebSocketApp(
@@ -84,7 +83,7 @@ class ActionCableClient ():
             'command': 'subscribe',
             'identifier': json.dumps({
                 'channel': 'ApiChannel',
-                'key': MSKey,
+                'key': self.key,
                 'command': 'subscribe'
                 })}))
 
@@ -117,7 +116,7 @@ class ActionCableClient ():
 class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
-        self.checker = Halflife()
+        self.checker = Halflife(key=self.key)
 
     def on_flag (self, ws, arg):
         logging.info('flag_log {message}'.format(message=arg['message']))
@@ -139,7 +138,9 @@ class MetasmokeApiError(Exception):
 
 
 class Halflife ():
-    def __init__ (self):
+    def __init__ (self, key):
+        self.key = key
+
         self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
@@ -168,7 +169,6 @@ class Halflife ():
         logging.debug('username: {user}'.format(user=message['username']))
         self.get_post_reasons(message)
         ######## TODO: don't hardcode limit
-        # (currently a MetaSmokeSearch variable, should be declared here?)
         if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
                 for x in message[':reasons']]):
             logging.error(
@@ -255,7 +255,7 @@ class Halflife ():
 
     def api_query(self, route, filter=None):
         logging.info('query: /api/{route}'.format(route=route))
-        params = {'key': MSKey}
+        params = {'key': self.key}
         if filter:
             params['filter'] = filter
         req = requests.get(
@@ -454,5 +454,4 @@ if __name__ == '__main__':
         level=logging.WARN, format='%(module)s:%(asctime)s:%(message)s')
     with open('halflife.conf', 'r') as conffile:
         conf = json.loads(conffile.read())
-    MSKey = conf['metasmoke-key']
-    h = HalflifeClient()
+    h = HalflifeClient(key=conf['metasmoke-key'])
