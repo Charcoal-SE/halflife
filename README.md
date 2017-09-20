@@ -14,12 +14,12 @@ domain name passes the criteria we have for updating the blacklists.
 Configuration
 -----------
 
-You will need to have `requests` and `websocket` installed, perhaps in
+You will need to have `requests` and `websocket-client` installed, perhaps in
 a virtual environment.
 
     python3 -m venv halflife-env
     . ./halflife-env/bin/activate
-	pip install -f requirements.txt
+    pip install -r requirements.txt
 
 Create a file `halflife.conf` containing a JSON representation of your
 Metasmoke API key.
@@ -33,7 +33,7 @@ of the one where you have checked out `halflife`.
 
 	cd ../SmokeDetector
 	ln -s ../halflife/halflife.conf .
-	./halflife.py
+    ../halflife/halflife.py
 
 
 Docker Image
