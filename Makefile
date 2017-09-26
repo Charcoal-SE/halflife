@@ -1,10 +1,12 @@
-DOCKER_VERSION := $(shell git describe --always)
-
-.PHONY: docker
-docker: docker-builld.log
-	docker tag halflife:$(DOCKER_VERSION) tripleee/halflife:$(DOCKER_VERSION))
-	docker tag halflife:$(DOCKER_VERSION) tripleee/halflife:latest
-	docker push tripleee/halflife:$(DOCKER_VERSION)
+.PHONY: docker .docker-subtarget
+docker: docker-build.log
+	$(MAKE) -$(MAKEFLAGS) tag=$(shell awk 'END { print $$NF }' $<) \
+		.docker-subtarget
+.docker-subtarget:
+	: ${tag?Please run $(MAKE) -$(MAKEFLAGS) docker}
+	docker tag $(tag) tripleee/halflife:$(tag)
+	docker tag $(tag) tripleee/halflife:latest
+	docker push tripleee/halflife:latest
 
 docker-build.log: Dockerfile
 	docker build . | tee $@
