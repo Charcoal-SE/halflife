@@ -158,6 +158,38 @@ class Halflife ():
                 body.append(frag.split('</code></pre>')[1])
             return '\n'.join(body)
 
+        def parse_why (post):
+            """
+            Attempt to parse the human-readable "why": data from
+            a single string into a somewhat structured representation.
+
+            This still lacks the precise reason (the reasons are
+            enumerated separately).
+            """
+            why = post['why']
+            items = []
+            matches = {}
+            for line in why.split('\n'):
+                items.extend(line.split(', '))
+            for i in range(len(items)):
+                if items[i] == '':
+                    continue
+                if not items[i].startswith(
+                        ('Body -', 'Title -', 'Username -', 'Position ')):
+                    offset=1
+                    while items[i-offset] == '':
+                        offset += 1
+                    items[i-offset] += ', ' + items[i]
+                    items[i] = ''
+            for item in items:
+                parts = item.split(': ', 1)
+                if len(parts) == 2:
+                    if parts[1] not in matches:
+                        matches[parts[1]] = [item]
+                    else:
+                        matches[parts[1]].append(item)
+            return matches
+
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
         post_id = message['id']
@@ -168,6 +200,7 @@ class Halflife ():
         logging.debug('body: {body}'.format(body=message['body']))
         logging.debug('username: {user}'.format(user=message['username']))
         self.get_post_reasons(message)
+        message[':why'] = parse_why(message)
         ######## TODO: don't hardcode limit
         if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
                 for x in message[':reasons']]):
@@ -198,11 +231,17 @@ class Halflife ():
                     logging.debug(
                         '{id}: No domain_check result for {url}'.format(
                             id=post_id, url=url))
+                    ######## TODO: maybe check :why here too?
                 else:
                     for host in url_result[url]['domain_check']:
                         if not url_result[url]['domain_check'][host]:
-                            logging.error('{id}: {host} is not blacklisted '
-                                'or watched'.format(id=post_id, host=host))
+                            if host in message[':why']:
+                                logging.warn('{id}: {host} matched: '
+                                    '{why}'.format(id=post_id, host=host,
+                                        why='; '.join(message[':why'][host])))
+                            else:
+                                logging.error('{id}: {host} is not blacklisted '
+                                    'or watched'.format(id=post_id, host=host))
                         else:
                             logging.warn('{id}: {host} is {what}'.format(
                                 id=post_id, host=host,
@@ -240,7 +279,11 @@ class Halflife ():
                 else:
                     for tail, result in url_result[url]['tail_check'].items():
                         if not result:
-                            result = 'not blacklisted or watched'
+                            if tail in message[':why']:
+                                result = 'matched in ' + '; '.join(
+                                    message[':why'][tail])
+                            else:
+                                result = 'not blacklisted or watched'
                         logging.warn(
                             '{id}: URL {url} tail {tail} is {result}'.format(
                                 id=post_id, url=url, tail=tail, result=result))
