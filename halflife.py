@@ -234,6 +234,17 @@ class Halflife ():
                                 '({rdns})'.format(
                                     id=post_id, host=host, ip=ip, rdns=rdns))
 
+                if 'tail_check' not in url_result[url]:
+                    logging.debug('{id}: no tail from URL {url}'.format(
+                        id=post_id, url=url))
+                else:
+                    for tail, result in url_result[url]['tail_check'].items():
+                        if not result:
+                            result = 'not blacklisted or watched'
+                        logging.warn(
+                            '{id}: URL {url} tail {tail} is {result}'.format(
+                                id=post_id, url=url, tail=tail, result=result))
+
                 if 'metasmoke' not in url_result[url]:
                     logging.debug('{id}: no metasmoke result for {url}'.format(
                         id=post_id, url=url))
@@ -326,16 +337,37 @@ class Halflife ():
                     result[url]['domain_check'] = {host: None}
                 result[url]['metasmoke'] = self.domain_query(host)
 
-            ######## TODO: examine tail
+            if tail:
+                tailresult = None
+                tailcopy = tail
+                while tailcopy.startswith('/'):
+                    tailcopy = tailcopy[1:]
+                while tailcopy.endswith('/'):
+                    tailcopy = tailcopy[:-1]
+                if tail and '/' not in tailcopy:
+                    # FIXME: poor code duplication of bad_pattern_in_url()
+                    for suffix in ['-reviews', '-review', '-support',
+                            '-and-scam', '-or-scam', '-canada']:
+                        if tailcopy.endswith(suffix):
+                            tailcopy = tailcopy[:-(len(suffix))]
+                    tail_regex = tailcopy.replace('-', r'\W?') + '$'
+                    if self.listed('^' + tail_regex,
+                            'bad_keywords.txt', escape=False):
+                        tailresult = 'blacklisted'
+                    elif self.listed('\t' + tail_regex,
+                            'watched_keywords.txt', escape=False):
+                        tailresult = 'watched'
+                    result[url]['tail_check'] = {tailcopy: tailresult}
 
             result[url]['dns_check'] = self.dns(host)
 
         return result
 
-    def listed(self, host_re, listfile):
+    def listed(self, host_re, listfile, escape=True):
         ######## TODO: maybe replace with a metasmoke query
         ######## FIXME: if the listed regex is broader, this will miss it
-        host_re = host_re.replace('\\', '\\\\')
+        if escape:
+            host_re = host_re.replace('\\', '\\\\')
         try:
             logging.debug('running {0!r}'.format(['grep', '-qis', host_re, listfile]))
             subprocess.run(['grep', '-qis', host_re, listfile], check=True)
