@@ -193,7 +193,7 @@ class Halflife ():
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
         post_id = message['id']
-        logging.warn('Check post {id} https:{link} ({weight})'.format(
+        logging.warn('{id}: Check post https:{link} ({weight})'.format(
             id=post_id, link=message[':meta']['link'], weight=weight))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
@@ -227,7 +227,7 @@ class Halflife ():
 
             for url in url_result:
 
-                logging.warn('{id} Extracted URL {url}'.format(
+                logging.warn('{id}: Extracted URL {url}'.format(
                     id=post_id, url=url))
 
                 if 'domain_check' not in url_result[url]:
@@ -280,19 +280,30 @@ class Halflife ():
                     logging.debug('{id}: no tail from URL {url}'.format(
                         id=post_id, url=url))
                 else:
-                    result = None
-                    for tail, verdict in url_result[url]['tail_check'].items():
+                    for tail, result in url_result[url]['tail_check'].items():
                         if not result:
-                            for why in message[':why']:
-                                if tail.lower() in why.lower():
-                                    if result:
-                                        result += '; '
-                                    else:
-                                        result = ''
-                                    result += 'matched in ' + '; '.join(
-                                        message[':why'][why])
+                            if tail in message[':why']:
+                                result = 'matched (watched or blacklisted)'
                             else:
-                                result = 'not blacklisted or watched'
+                                tail = tail.lower()
+                                for suffix in ['-be', '-fr', '-us',
+                                    '-south-africa', '-supplement', '-cream',
+                                    '-serum', '-garcinia', '-force', '-skin',
+                                    '-pro', '-oil', '-male-enhancement',
+                                    '-anti-aging']:
+                                    if tail.endswith(suffix):
+                                        tail = tail[:-len(suffix)]
+                                for why in message[':why']:
+                                    if tail in why.lower():
+                                        if result:
+                                            result += '; '
+                                        else:
+                                            result = ''
+                                        result += 'matched in ' + '; '.join(
+                                            message[':why'][why])
+                        if not result:
+                            result = 'not blacklisted or watched'
+                            ######## TODO: metasmoke search for tail
                         logging.warn(
                             '{id}: URL tail {tail} is {result}'.format(
                                 id=post_id, tail=tail, result=result))
@@ -368,26 +379,25 @@ class Halflife ():
             if len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
             proto, _, host, tail = parts
+
             if host is None or '%20' in proto or '%20' in host \
                     or '%3' in proto or '%3' in host:
                 continue
             if host.startswith('www.'):
                 host = host[4:]
-            if host in seen:
-                continue
-            seen.update([host])
-            host_re = host.replace('.', r'\.')
-            if host in self.domain_whitelist:
-                result[url]['domain_check'] = {host: 'whitelisted'}
-                continue
-            elif self.listed('^' + host_re + '$', 'blacklisted_websites.txt'):
-                result[url]['domain_check'] = {host: 'blacklisted'}
-            else:
-                if self.listed('\t' + host_re + '$', 'watched_keywords.txt'):
-                    result[url]['domain_check'] = {host: 'watched'}
+            if host not in seen:
+                seen.update([host])
+                host_re = host.replace('.', r'\.') + '$'
+                if host in self.domain_whitelist:
+                    result[url]['domain_check'] = {host: 'whitelisted'}
+                elif self.listed('^' + host_re, 'blacklisted_websites.txt'):
+                    result[url]['domain_check'] = {host: 'blacklisted'}
                 else:
-                    result[url]['domain_check'] = {host: None}
-                result[url]['metasmoke'] = self.domain_query(host)
+                    if self.listed('\t' + host_re, 'watched_keywords.txt'):
+                        result[url]['domain_check'] = {host: 'watched'}
+                    else:
+                        result[url]['domain_check'] = {host: None}
+                    result[url]['metasmoke'] = self.domain_query(host)
 
             if tail:
                 tailresult = None
@@ -400,7 +410,7 @@ class Halflife ():
                     # FIXME: poor code duplication of bad_pattern_in_url()
                     for suffix in ['-reviews', '-review', '-support',
                             '-and-scam', '-or-scam', '-canada']:
-                        if tailcopy.endswith(suffix):
+                        if tailcopy.lower().endswith(suffix):
                             tailcopy = tailcopy[:-(len(suffix))]
                     tail_regex = tailcopy.replace('-', r'\W?') + '$'
                     if self.listed('^' + tail_regex,
