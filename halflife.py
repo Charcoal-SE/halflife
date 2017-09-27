@@ -227,6 +227,9 @@ class Halflife ():
 
             for url in url_result:
 
+                logging.warn('{id} Extracted URL {url}'.format(
+                    id=post_id, url=url))
+
                 if 'domain_check' not in url_result[url]:
                     logging.debug(
                         '{id}: No domain_check result for {url}'.format(
@@ -291,8 +294,8 @@ class Halflife ():
                             else:
                                 result = 'not blacklisted or watched'
                         logging.warn(
-                            '{id}: URL {url} tail {tail} is {result}'.format(
-                                id=post_id, url=url, tail=tail, result=result))
+                            '{id}: URL tail {tail} is {result}'.format(
+                                id=post_id, tail=tail, result=result))
 
                 if 'metasmoke' not in url_result[url]:
                     logging.debug('{id}: no metasmoke result for {url}'.format(
