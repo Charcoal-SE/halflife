@@ -277,11 +277,17 @@ class Halflife ():
                     logging.debug('{id}: no tail from URL {url}'.format(
                         id=post_id, url=url))
                 else:
-                    for tail, result in url_result[url]['tail_check'].items():
+                    result = None
+                    for tail, verdict in url_result[url]['tail_check'].items():
                         if not result:
-                            if tail in message[':why']:
-                                result = 'matched in ' + '; '.join(
-                                    message[':why'][tail])
+                            for why in message[':why']:
+                                if tail.lower() in why.lower():
+                                    if result:
+                                        result += '; '
+                                    else:
+                                        result = ''
+                                    result += 'matched in ' + '; '.join(
+                                        message[':why'][why])
                             else:
                                 result = 'not blacklisted or watched'
                         logging.warn(
