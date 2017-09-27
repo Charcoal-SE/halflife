@@ -9,4 +9,4 @@ docker: docker-build.log
 	docker push tripleee/halflife:latest
 
 docker-build.log: Dockerfile
-	docker build . | tee $@
+	docker build --no-cache . | tee $@
