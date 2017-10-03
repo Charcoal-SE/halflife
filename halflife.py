@@ -439,9 +439,12 @@ class Halflife ():
             logging.debug('returning False')
             return False
 
-    def domain_query (self, domain):
-        domain_re = r'(^|[^A-Za-z0-9_]){domain}([^A-Za-z0-9_]|$)'.format(
-            domain=domain.replace('.', r'\.'))
+    def domain_query (self, domain, is_regex=False):
+        if is_regex:
+            domain = domain.replace(r'\W', '[^A-Za-z0-9_]')
+        else:
+            domain = domain.replace('.', r'\.')
+        domain_re = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(domain)
         ######## FIXME: 'per_page': 100; add a filter
         hits_query = self.api_query(
             'posts/search/regex?query={re}'.format(re=domain_re))
@@ -453,10 +456,12 @@ class Halflife ():
         # Don't check weights if we can't blacklist anything anyway
         # or if the blacklisting criteria are triggered regardless of weights
         weight = None
+        below_auto = None
         if len(hits) > 1 and len(tp) < self.blacklist_thres:
             hits_details = self.api_query('posts/{ids}'.format(
                 ids=';'.join([str(x['id']) for x in hits])))
             weight = dict()
+            below_auto = 0
             for hit in hits_details['items']:
                 weight[hit['id']] = hit['reason_weight']
         post_date_max = None
@@ -481,6 +486,7 @@ class Halflife ():
                         'Post {id} below auto ({weight}) {span} ago'.format(
                             id=hit['id'], weight=wt,
                             span=datetime.datetime.now()-post_date))
+                    below_auto += 1
             else:
                 logging.info('{count} results; not getting weights'.format(
                 count=len(hits)))
@@ -489,8 +495,12 @@ class Halflife ():
             timespan = post_date_max - post_date_min
         else:
             timespan = datetime.timedelta()
-        result = {'hits': hits, 'timespan': timespan, 'tp_count': len(tp)}
-        return result
+        return {
+            'hits': hits,
+            'timespan': timespan,
+            'tp_count': len(tp),
+            'below_auto': below_auto
+            }
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
