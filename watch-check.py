@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+import time  # for .sleep()
 
 import halflife as hl
 
@@ -25,6 +26,7 @@ class WatchChecker:
                 fields = line.split('\t')
                 domain = fields[-1].rstrip('\n')
                 yield self.domain_result(domain)
+                time.sleep(60)
 
     def eligible(self, result):
         if not hasattr(self, 'days180'):
