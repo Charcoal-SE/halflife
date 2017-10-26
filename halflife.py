@@ -290,10 +290,10 @@ class Halflife ():
                 else:
                     for tail, result in url_result[url]['tail_check'].items():
                         if not result:
+                            tail = tail.lower()
                             if tail in message[':why']:
                                 result = 'matched (watched or blacklisted)'
                             else:
-                                tail = tail.lower()
                                 for suffix in ['-be', '-fr', '-us',
                                     '-south-africa', '-supplement', '-cream',
                                     '-serum', '-garcinia', '-force', '-skin',
@@ -302,13 +302,19 @@ class Halflife ():
                                     if tail.endswith(suffix):
                                         tail = tail[:-len(suffix)]
                                 for why in message[':why']:
-                                    if tail in why.lower():
+                                    if len(why) > 2*len(tail) or \
+                                            any([x in why for x in ['link at end']]):
+                                        pass
+                                    elif tail == why.lower():
+                                        result = 'matched in ' + \
+                                            '; '.join(message[':why'][why])
+                                        break
+                                    elif tail in why.lower():
                                         if result:
                                             result += '; '
                                         else:
                                             result = ''
-                                        result += 'matched in ' + '; '.join(
-                                            message[':why'][why])
+                                        result += 'matched in ' + why
                         if not result:
                             result = 'not blacklisted or watched'
                             ######## TODO: metasmoke search for tail
