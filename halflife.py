@@ -141,7 +141,15 @@ class Halflife ():
     def __init__ (self, key):
         self.key = key
 
-        self.domain_whitelist = ['i.stack.imgur.com', 'stackoverflow.com']
+        self.domain_whitelist = [
+            'i.stack.imgur.com',
+            'stackoverflow.com',
+            'stackexchange.com',
+            'superuser.com',
+            'serverfault.com',
+            'askubuntu.com',
+            'mathoverflow.net',
+            ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
 
