@@ -113,6 +113,10 @@ class ActionCableClient ():
         logging.info('close')
 
 
+class FetchError (Exception):
+    pass
+
+
 class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
@@ -258,6 +262,19 @@ class Halflife ():
                                 id=post_id, host=host,
                                 what=url_result[url]['domain_check'][host]))
 
+                if 'request_check' in url_result[url]:
+                    status = url_result[url]['request_check'].status_code
+                    if status != 200:
+                        logging.warn('{id}: HTTP status {status} for {url}'
+                            .format(id=post_id, status=status, url=url))
+
+                if 'go-url' in url_result[url]:
+                    for go_url in url_result[url]['go-url']:
+                        logging.warn('{id}: Wordpress promotion URL {url} '
+                            'redirects to {dest}'.format(
+                                id=post_id, url=go_url,
+                                    dest=url_result[url]['go-url'][go_url]))
+
                 if 'dns_check' not in url_result[url] or \
                         'host' not in url_result[url]['dns_check']:
                     logging.debug('{id}: no dns_check result for {url}'.format(
@@ -378,13 +395,49 @@ class Halflife ():
             logging.info('examining fragment {frag}'.format(frag=frag))
             if frag.startswith('s://') or frag.startswith('://'):
                 candidate = 'http' + frag.split()[0]
-                candidate.rstrip('">')
+                candidate = candidate.split('">')[0]
+                candidate = candidate.rstrip('">')
                 if '%20' in candidate:
                     continue
                 urls.append(candidate)
         return urls
 
     def check_urls(self, urls):
+        def _fetch (url):
+            """
+            Use requests to fetch the URL, pretend to be a browser.
+            """
+            '''
+            from urllib3.exceptions import ReadTimeoutError \
+                    as Urllib3ReadTimeoutError
+            from socket import gaierror as SocketGaiError
+            '''
+            from requests.exceptions import ConnectionError
+            try:
+                response = requests.get(url, timeout=20,
+                    # Emulate Firefox, copy/paste from my computer
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; '
+                            'Intel Mac OS X 10.12; rv:58.0) '
+                            'Gecko/20100101 Firefox/58.0',
+                        'Accept': 'text/html,application/xhtml+xml,'
+                            'application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        ######## TODO: replace this with something less static?
+                        'Cookie': 'remember_user_token=WyJiYXNlNjQgaW5mb3'
+                            'JtYXRpb24iXSxbImxvdHMgb2YgaXQiXQo=',
+                        'Connection': 'keep-alive', # is this safe?
+                        'Upgrade-Insecure-Requests': '1',
+                        })
+                logging.info('Status {0} for URL {1}'.format(
+                    response.status_code, url))
+                logging.debug('Fetched {0}'.format(response.text))
+                return response
+            except (ConnectionError) as exc:
+                logging.warn('Failed to fetch URL {0} ({1!r})'.format(url, exc))
+                raise FetchError(str(exc))
+
         seen = set()
         result = dict()
         for url in urls:
@@ -404,6 +457,7 @@ class Halflife ():
                 host_re = host.replace('.', r'\.') + '$'
                 if host in self.domain_whitelist:
                     result[url]['domain_check'] = {host: 'whitelisted'}
+                    continue
                 elif self.listed('^' + host_re, 'blacklisted_websites.txt'):
                     result[url]['domain_check'] = {host: 'blacklisted'}
                 else:
@@ -436,6 +490,51 @@ class Halflife ():
                     result[url]['tail_check'] = {tailcopy: tailresult}
 
             result[url]['dns_check'] = self.dns(host)
+
+            try:
+                response = _fetch(url)
+
+                result[url]['request_check'] = response
+
+                if response.status_code == 200:
+                    if '<meta name="generator" content="WordPress' not \
+                            in response.text:
+                        logging.debug('Not a WordPress page apparently')
+                    else:
+                        logging.debug('Found WordPress <meta> tag')
+                        srcset_urls = set()
+                        for line in response.text.split('\n'):
+                            if ' srcset="' in line and '><img ' in line:
+                                for surl in self.pick_urls(line):
+                                    if surl.endswith('.jpg') or '.jpg?' in surl:
+                                        logging.debug('Skip JPG URL {0}'
+                                            .format(surl))
+                                        continue
+                                    if surl.endswith('.png') or '.png?' in surl:
+                                        logging.debug('Skip PNG URL {0}'
+                                            .format(surl))
+                                        continue
+                                    srcset_urls.add(surl)
+                        logging.debug('srcset= URLS: {0!r}'.format(srcset_urls))
+                        if len(srcset_urls) > 5:
+                            logging.info('List of URLs too long, skipping')
+                            srcset_urls = []
+                        for go_url in srcset_urls:
+                            try:
+                                go_response = _fetch(go_url)
+                            except FetchError as exc:
+                                logging.warn('Failed to fetch {0} ({1!r})'
+                                    .format(go_url, exc))
+                                continue
+                            if go_response.url == go_url:
+                                logging.debug('No redirect {0}'.format(go_url))
+                            else:
+                                if 'go-url' not in result[url]:
+                                    result[url]['go-url'] = dict()
+                                result[url]['go-url'][go_url] = go_response.url
+
+            except FetchError as exc:
+                logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
 
         return result
 
