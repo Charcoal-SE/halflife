@@ -320,13 +320,14 @@ class Halflife ():
                                         tail = tail[:-len(suffix)]
                                 for why in message[':why']:
                                     if len(why) > 2*len(tail) or \
-                                            any([x in why for x in ['link at end']]):
+                                            any([x in why
+                                                for x in ['link at end']]):
                                         pass
                                     elif tail == why.lower():
                                         result = 'matched in ' + \
                                             '; '.join(message[':why'][why])
                                         break
-                                    elif tail in why.lower():
+                                    elif tail in why.lower().replace(url, ''):
                                         if result:
                                             result += '; '
                                         else:
