@@ -403,7 +403,12 @@ class Halflife ():
                 urls.append(candidate)
         return urls
 
-    def check_urls(self, urls):
+    def check_urls(self, urls, recurse=True):
+        '''
+        Check a list of URLs.
+
+        With recurse=False, don't attempt to fetch.
+        '''
         def _fetch (url):
             """
             Use requests to fetch the URL, pretend to be a browser.
@@ -493,6 +498,9 @@ class Halflife ():
             result[url]['dns_check'] = self.dns(host)
 
             try:
+                if not recurse:
+                    raise FetchError(
+                        'recurse=False; throwing FetchError to bypass fetch')
                 response = _fetch(url)
 
                 result[url]['request_check'] = response
@@ -533,6 +541,8 @@ class Halflife ():
                                 if 'go-url' not in result[url]:
                                     result[url]['go-url'] = dict()
                                 result[url]['go-url'][go_url] = go_response.url
+                                result.update(self.check_urls(
+                                    [go_response.url], recurse=False))
 
             except FetchError as exc:
                 logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
