@@ -153,6 +153,14 @@ class Halflife ():
             'serverfault.com',
             'askubuntu.com',
             'mathoverflow.net',
+            # common FPs
+            'example.com',
+            'github.com',
+            'goo.gl',
+            'google.com',
+            'google.ie',
+            'youtube.com',
+            'youtu.be',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
