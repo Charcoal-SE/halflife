@@ -342,15 +342,21 @@ class Halflife ():
                                         else:
                                             result = ''
                                         result += 'matched in ' + why
+
                         if not result or result == 'watched':
                             tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
-                            tail_query = self.tp_query(tail_re)
-                            logging.warn('{id}: regex {re} search:'
-                                ' {tp}/{all} hits'.format(
-                                    id=post_id,
-                                    re=tail.replace('-', r'\W?'),
-                                    tp=tail_query['tp_count'],
-                                    all=len(tail_query['hits'])))
+                            try:
+                                tail_query = self.tp_query(tail_re)
+                                logging.warn('{id}: regex {re} search:'
+                                    ' {tp}/{all} hits'.format(
+                                        id=post_id,
+                                        re=tail.replace('-', r'\W?'),
+                                        tp=tail_query['tp_count'],
+                                        all=len(tail_query['hits'])))
+                            except MetasmokeApiError as err:
+                                logging.error('Could not perform query for {0}'
+                                    ' ({1})'.format(tail_re, err))
+
                         if not result:
                             result = 'not blacklisted or watched'
                         logging.warn(
@@ -385,10 +391,15 @@ class Halflife ():
             'https://metasmoke.erwaysoftware.com/api/{route}'.format(
                 route=route),
             params=params)
-        result = json.loads(req.text)
-        logging.info('query result: {0!r}'.format(result))
+        try:
+            result = json.loads(req.text)
+            logging.info('query result: {0!r}'.format(result))
+        except json.decoder.JSONDecodeError:
+            logging.error('Query {0} did not return valid JSON: {1!r}'
+                .format(route, req.text))
+            result = {'error': 'Invalid JSON {0!r}'.format(req.text)}
         if 'error' in result:
-            raise MetasmokeApiError(error_message)
+            raise MetasmokeApiError(result['error'])
         return result
 
     def _api_id_query(self, message, route_pattern, filter=None):
@@ -483,7 +494,11 @@ class Halflife ():
                         result[url]['domain_check'] = {host: 'watched'}
                     else:
                         result[url]['domain_check'] = {host: None}
-                    result[url]['metasmoke'] = self.domain_query(host)
+                    try:
+                        result[url]['metasmoke'] = self.domain_query(host)
+                    except MetasmokeApiError as err:
+                        logging.error('Could not perform domain query for {0}'
+                            ' ({1})'.format(host, err))
 
             if tail:
                 tailresult = None
