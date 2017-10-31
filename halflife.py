@@ -333,9 +333,17 @@ class Halflife ():
                                         else:
                                             result = ''
                                         result += 'matched in ' + why
+                        if not result or result == 'watched':
+                            tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
+                            tail_query = self.tp_query(tail_re)
+                            logging.warn('{id}: regex {re} search:'
+                                ' {tp}/{all} hits'.format(
+                                    id=post_id,
+                                    re=tail.replace('-', r'\W?'),
+                                    tp=tail_query['tp_count'],
+                                    all=len(tail_query['hits'])))
                         if not result:
                             result = 'not blacklisted or watched'
-                            ######## TODO: metasmoke search for tail
                         logging.warn(
                             '{id}: URL tail {tail} is {result}'.format(
                                 id=post_id, tail=tail, result=result))
@@ -563,17 +571,23 @@ class Halflife ():
             logging.debug('returning False')
             return False
 
-    def domain_query (self, domain, is_regex=False):
-        if is_regex:
-            domain = domain.replace(r'\W', '[^A-Za-z0-9_]')
-        else:
-            domain = domain.replace('.', r'\.')
-        domain_re = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(domain)
+    def word_query (self, regex):
+        """
+        Perform a regex query with word boundaries on both sides of the regex.
+        """
+        word_re = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(regex)
         ######## FIXME: 'per_page': 100; add a filter
-        hits_query = self.api_query(
-            'posts/search/regex?query={re}'.format(re=domain_re))
-        if 'items' not in hits_query:
-            raise MetasmokeApiError('No "items" in {0!r}'.format(hits_query))
+        query = self.api_query(
+            'posts/search/regex?query={re}'.format(re=word_re))
+        if 'items' not in query:
+            raise MetasmokeApiError('No "items" in {0!r}'.format(query))
+        return query
+
+    def tp_query (self, regex):
+        """
+        Return hits, timespan, tp_count, below auto for a word-bounded regex.
+        """
+        hits_query = self.word_query(regex)
         hits = hits_query['items']
         tp = [x for x in hits
             if x['is_tp'] and not x['is_naa'] and not x['is_fp']]
@@ -625,6 +639,13 @@ class Halflife ():
             'tp_count': len(tp),
             'below_auto': below_auto
             }
+
+    def domain_query (self, domain, is_regex=False):
+        if is_regex:
+            domain = domain.replace(r'\W', '[^A-Za-z0-9_]')
+        else:
+            domain = domain.replace('.', r'\.')
+        return self.tp_query(domain)
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
