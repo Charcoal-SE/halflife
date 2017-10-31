@@ -630,7 +630,7 @@ class Halflife ():
         ######## TODO: maybe replace with dnspython
         def _dig (query, host):
             q = subprocess.run(['dig', '+short', '-t', query, host],
-                check=True, stdout=subprocess.PIPE, universal_newlines=True)
+                check=False, stdout=subprocess.PIPE, universal_newlines=True)
             if q.stdout == '\n':
                 return []
             return q.stdout.rstrip('\n').split('\n')
