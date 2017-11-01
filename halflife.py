@@ -484,7 +484,12 @@ class Halflife ():
             if host not in seen:
                 seen.update([host])
                 host_re = host.replace('.', r'\.') + '$'
-                if host in self.domain_whitelist:
+                whitelisted = False
+                for white in self.domain_whitelist:
+                    if host == white or host.endswith('.' + white):
+                        whitelisted = True
+                        break
+                if whitelisted:
                     result[url]['domain_check'] = {host: 'whitelisted'}
                     continue
                 elif self.listed('^' + host_re, 'blacklisted_websites.txt'):
