@@ -156,11 +156,15 @@ class Halflife ():
             # common FPs
             'example.com',
             'github.com',
+            'sourceforge.net',
             'goo.gl',
             'google.com',
             'google.ie',
+            'googleapis.com',
             'youtube.com',
             'youtu.be',
+            'microsoft.com',
+            'apple.com',
             'jsfiddle.net',
             'imgur.com',
             ]
