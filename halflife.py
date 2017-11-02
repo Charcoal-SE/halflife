@@ -165,6 +165,8 @@ class Halflife ():
             'youtu.be',
             'microsoft.com',
             'apple.com',
+            'facebook.com',
+            'twitter.com',
             'jsfiddle.net',
             'imgur.com',
             ]
