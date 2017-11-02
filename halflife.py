@@ -249,7 +249,10 @@ class Halflife ():
 
         logging.info('urls are {urls!r}'.format(urls=urls))
 
-        if len(urls) > 0:
+        if len(urls) > 3:
+            logging.warn('Post had more than 3 unique URLs; skipping details.')
+
+        elif len(urls) > 0:
 
             url_result = self.check_urls(urls)
 
