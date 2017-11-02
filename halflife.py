@@ -162,6 +162,7 @@ class Halflife ():
             'youtube.com',
             'youtu.be',
             'jsfiddle.net',
+            'imgur.com',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
