@@ -173,6 +173,7 @@ class Halflife ():
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
+        self.url_visit_cache = dict()
 
         self.autoflagging_threshold = 280
         self.blacklist_thres = 30  # 30 hits or more means blacklist
@@ -453,6 +454,12 @@ class Halflife ():
             Use requests to fetch the URL, pretend to be a browser.
             """
             from requests.exceptions import ConnectionError
+            if url in self.url_visit_cache:
+                ######## TODO: make url_visit_cache objects opaque
+                logging.warn('Visited URL at {0};'
+                    ' returning cached result for {1}'.format(
+                        self.url_visit_cache[url][0], url))
+                return self.url_visit_cache[url][1]
             try:
                 response = requests.get(url, timeout=20,
                     # Emulate Firefox, copy/paste from my computer
@@ -473,6 +480,9 @@ class Halflife ():
                 logging.info('Status {0} for URL {1}'.format(
                     response.status_code, url))
                 logging.debug('Fetched {0}'.format(response.text))
+                ######## TODO: make url_visit_cache objects opaque
+                self.url_visit_cache[url] = (
+                    datetime.datetime.utcnow(), response)
                 return response
             except (ConnectionError) as exc:
                 logging.warn('Failed to fetch URL {0} ({1!r})'.format(url, exc))
