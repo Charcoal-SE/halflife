@@ -168,6 +168,7 @@ class Halflife ():
             'facebook.com',
             'twitter.com',
             'jsfiddle.net',
+            'npmjs.com',
             'imgur.com',
             ]
         ######## TODO: load a pickle?
