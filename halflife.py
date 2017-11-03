@@ -597,8 +597,10 @@ class Halflife ():
                                         result[url]['go-url'] = dict()
                                     result[url]['go-url'][
                                         go_url] = go_response.url
+                                    '''
                                     result.update(self.check_urls(
                                         [go_response.url], recurse=False))
+                                    '''
 
             except FetchError as exc:
                 logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
