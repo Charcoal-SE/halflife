@@ -156,6 +156,7 @@ class Halflife ():
             # common FPs
             'example.com',
             'github.com',
+            'github.io',
             'sourceforge.net',
             'goo.gl',
             'google.com',
@@ -164,6 +165,7 @@ class Halflife ():
             'youtube.com',
             'youtu.be',
             'microsoft.com',
+            'azurewebsites.net',
             'apple.com',
             'facebook.com',
             'twitter.com',
