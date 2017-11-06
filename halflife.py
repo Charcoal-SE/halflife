@@ -170,6 +170,7 @@ class Halflife ():
             'jsfiddle.net',
             'npmjs.com',
             'imgur.com',
+            'wikipedia.org',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
