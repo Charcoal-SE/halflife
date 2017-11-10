@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import subprocess
+from itertools import groupby
 
 import requests
 import websocket
@@ -192,6 +193,20 @@ class Halflife ():
                 body.append(frag.split('</code></pre>')[1])
             return '\n'.join(body)
 
+        def find_phones (post):
+            """
+            Crude phone number candidate extraction.
+            """
+            phone_min = 9
+            phone_max = 14
+            phones = []
+            for alpha, candidate in groupby(post, key=str.isalpha):
+                if not alpha:
+                    candidate = ''.join(ch for ch in candidate if ch.isdigit())
+                    if phone_min <= len(candidate) <= phone_max:
+                        phones.append(candidate)
+            return phones
+
         def parse_why (post):
             """
             Attempt to parse the human-readable "why": data from
@@ -241,10 +256,30 @@ class Halflife ():
             logging.error(
                 '{id}: Blacklisted contents but post still below auto'.format(
                     id=post_id))
-        urls = set()
+
         cleaned_body = strip_code_blocks(message['body'])
         logging.info('Body with code blocks stripped is {0!r}'.format(
             cleaned_body))
+
+        phones = set(find_phones(cleaned_body))
+        phones.union(set(find_phones(message['title'])))
+        logging.info('Phone number candidates: {0!r}'.format(phones))
+
+        phone_result = self.check_phones(phones)
+        for phone in phone_result:
+            logging.warn('{id}: Extracted possible phone number {phone}'
+                .format(id=post_id, phone=phone))
+            if 'search' not in phone_result[phone]:
+                logging.debug('{id}: no search result for {phone}'
+                    .format(id=post_id, phone=phone))
+            else:
+                logging.warn('{id}: {phone} search {tp}/{hits} over {time}'
+                    .format(id=post_id, phone=phone,
+                        tp=phone_result[phone]['search']['tp_count'],
+                        hits=len(phone_result[phone]['search']['hits']),
+                        time=phone_result[phone]['search']['timespan']))
+        
+        urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
         if '<a href="' in cleaned_body:
@@ -430,6 +465,21 @@ class Halflife ():
     def get_post_reasons(self, message):
         reasons = self._api_id_query(message, 'post/{0}/reasons')
         message[':reasons'] = reasons['items']
+
+
+    def check_phones(self, phones):
+        '''
+        Check a list of ostensible phone numbers.
+        '''
+        result = dict()
+        for phone in phones:
+            result[phone] = {}
+            try:
+                result[phone]['search'] = self.phone_query(phone)
+            except MetasmokeApiError as err:
+                logging.error('Could not perform phone query for {0} ({1})'
+                    .format(phone, err))
+        return result
 
     def pick_urls(self, string):
         """
@@ -694,6 +744,12 @@ class Halflife ():
             'below_auto': below_auto
             }
 
+    def phone_query (self, phone):
+        regex = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(
+            r'[^A-Za-z0-9_]*'.join(phone))
+        logging.warn('tp_query({0!r})'.format(regex)) ########
+        return self.tp_query(regex)
+        
     def domain_query (self, domain, is_regex=False):
         if is_regex:
             domain = domain.replace(r'\W', '[^A-Za-z0-9_]')
