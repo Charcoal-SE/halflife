@@ -129,7 +129,7 @@ class HalflifeClient (ActionCableClient):
                 subprocess.run(['git', 'describe', '--always'],
                     stdout=subprocess.PIPE,
                     universal_newlines=True).stdout.strip(),
-            uname().nodename, datetime.datetime.utcnow())
+            uname().nodename, datetime.datetime.utcnow()))
 
     def on_flag (self, ws, arg):
         logging.info('flag_log {message}'.format(message=arg['message']))
