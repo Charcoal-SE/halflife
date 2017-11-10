@@ -174,6 +174,8 @@ class Halflife ():
             'imgur.com',
             'wikipedia.org',
             'doi.org',
+            'prnt.sc',
+            'pastebin.com',
             ]
         self.redirectors = [
             'bit.ly',
