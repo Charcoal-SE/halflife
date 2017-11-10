@@ -122,6 +122,14 @@ class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
         self.checker = Halflife(key=self.key)
+        ######## TODO: should perhaps be level=info
+        from os import uname
+        logging.warn('[Halflife](https://github.com/triplee/halflife) '
+            '{0} running on {1} started {2} UTC'.format(
+                subprocess.run(['git', 'describe', '--always'],
+                    stdout=subprocess.PIPE,
+                    universal_newlines=True).stdout.strip(),
+            uname().nodename, datetime.datetime.utcnow())
 
     def on_flag (self, ws, arg):
         logging.info('flag_log {message}'.format(message=arg['message']))
