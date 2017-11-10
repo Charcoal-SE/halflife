@@ -159,7 +159,6 @@ class Halflife ():
             'github.com',
             'github.io',
             'sourceforge.net',
-            'goo.gl',
             'google.com',
             'google.ie',
             'googleapis.com',
@@ -175,6 +174,11 @@ class Halflife ():
             'imgur.com',
             'wikipedia.org',
             'doi.org',
+            ]
+        self.redirectors = [
+            'bit.ly',
+            'tinyurl.com',
+            'goo.gl',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
@@ -278,7 +282,7 @@ class Halflife ():
                         tp=phone_result[phone]['search']['tp_count'],
                         hits=len(phone_result[phone]['search']['hits']),
                         time=phone_result[phone]['search']['timespan']))
-        
+
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
@@ -538,7 +542,8 @@ class Halflife ():
                 self.url_visit_cache[url] = (
                     datetime.datetime.utcnow(), response)
                 return response
-            except (ConnectionError) as exc:
+            except (ConnectionError, requests.exceptions.TooManyRedirects
+                    ) as exc:
                 logging.warn('Failed to fetch URL {0} ({1!r})'.format(url, exc))
                 raise FetchError(str(exc))
 
@@ -560,13 +565,21 @@ class Halflife ():
                 seen.update([host])
                 host_re = host.replace('.', r'\.') + '$'
                 whitelisted = False
+                redirector = False
                 for white in self.domain_whitelist:
                     if host == white or host.endswith('.' + white):
                         whitelisted = True
                         break
+                if not whitelisted:
+                    for redir in self.redirectors:
+                        if host == redir or host.endswith('.' + redir):
+                            redirector = True
+                            break
                 if whitelisted:
                     result[url]['domain_check'] = {host: 'whitelisted'}
-                    continue
+                    #continue
+                elif redirector:
+                    result[url]['domain_check'] = {host: 'redirector'}
                 elif self.listed('^' + host_re, 'blacklisted_websites.txt'):
                     result[url]['domain_check'] = {host: 'blacklisted'}
                 else:
@@ -580,30 +593,32 @@ class Halflife ():
                         logging.error('Could not perform domain query for {0}'
                             ' ({1})'.format(host, err))
 
-            if tail:
-                tailresult = None
-                tailcopy = tail
-                while tailcopy.startswith('/'):
-                    tailcopy = tailcopy[1:]
-                while tailcopy.endswith('/'):
-                    tailcopy = tailcopy[:-1]
-                if tail and '/' not in tailcopy:
-                    # FIXME: poor code duplication of bad_pattern_in_url()
-                    for suffix in ['-reviews', '-review', '-support',
-                            '-and-scam', '-or-scam', '-canada']:
-                        if tailcopy.lower().endswith(suffix):
-                            tailcopy = tailcopy[:-(len(suffix))]
-                    tail_regex = tailcopy.replace('-', r'\W?') + '$'
-                    if self.listed('^' + tail_regex,
-                            'bad_keywords.txt', escape=False):
-                        tailresult = 'blacklisted'
-                    elif self.listed('\t' + tail_regex,
-                            'watched_keywords.txt', escape=False):
-                        tailresult = 'watched'
-                    result[url]['tail_check'] = {tailcopy: tailresult}
+            if not redirector or whitelisted:
+                if tail:
+                    tailresult = None
+                    tailcopy = tail
+                    while tailcopy.startswith('/'):
+                        tailcopy = tailcopy[1:]
+                    while tailcopy.endswith('/'):
+                        tailcopy = tailcopy[:-1]
+                    if tail and '/' not in tailcopy:
+                        # FIXME: poor code duplication of bad_pattern_in_url()
+                        for suffix in ['-reviews', '-review', '-support',
+                                '-and-scam', '-or-scam', '-canada']:
+                            if tailcopy.lower().endswith(suffix):
+                                tailcopy = tailcopy[:-(len(suffix))]
+                        tail_regex = tailcopy.replace('-', r'\W?') + '$'
+                        if self.listed('^' + tail_regex,
+                                'bad_keywords.txt', escape=False):
+                            tailresult = 'blacklisted'
+                        elif self.listed('\t' + tail_regex,
+                                'watched_keywords.txt', escape=False):
+                            tailresult = 'watched'
+                        result[url]['tail_check'] = {tailcopy: tailresult}
 
-            result[url]['dns_check'] = self.dns(host)
+                result[url]['dns_check'] = self.dns(host)
 
+        if not whitelisted:
             try:
                 if recurse:
                     response = _fetch(url)
@@ -611,6 +626,9 @@ class Halflife ():
                     result[url]['request_check'] = response
 
                     if response.status_code == 200:
+                        if response.url != url:
+                            logging.warn('{0} redirects to {1}'.format(
+                                url, response.url))
                         if '<meta name="generator" content="WordPress' not \
                                 in response.text:
                             logging.debug('Not a WordPress page apparently')
