@@ -628,64 +628,65 @@ class Halflife ():
 
                 result[url]['dns_check'] = self.dns(host)
 
-        if not whitelisted:
-            try:
-                if recurse:
-                    response = _fetch(url)
+            if not whitelisted:
+                try:
+                    if recurse:
+                        response = _fetch(url)
 
-                    result[url]['request_check'] = response
+                        result[url]['request_check'] = response
 
-                    if response.status_code == 200:
-                        if response.url != url:
-                            logging.warn('{0} redirects to {1}'.format(
-                                url, response.url))
-                        if '<meta name="generator" content="WordPress' not \
-                                in response.text:
-                            logging.debug('Not a WordPress page apparently')
-                        else:
-                            logging.debug('Found WordPress <meta> tag')
-                            srcset_urls = set()
-                            for line in response.text.split('\n'):
-                                if ' srcset="' in line and '><img ' in line:
-                                    for surl in self.pick_urls(line):
-                                        if surl.endswith('.jpg') or \
-                                                '.jpg?' in surl:
-                                            logging.debug('Skip JPG URL {0}'
-                                                .format(surl))
-                                            continue
-                                        if surl.endswith('.png') or \
-                                                '.png?' in surl:
-                                            logging.debug('Skip PNG URL {0}'
-                                                .format(surl))
-                                            continue
-                                        srcset_urls.add(surl)
-                            logging.debug('srcset= URLS: {0!r}'.format(
-                                srcset_urls))
-                            if len(srcset_urls) > 5:
-                                logging.info('List of URLs too long, skipping')
-                                srcset_urls = []
-                            for go_url in srcset_urls:
-                                try:
-                                    go_response = _fetch(go_url)
-                                except FetchError as exc:
-                                    logging.warn('Failed to fetch {0} ({1!r})'
-                                        .format(go_url, exc))
-                                    continue
-                                if go_response.url == go_url:
-                                    logging.debug('No redirect {0}'.format(
-                                        go_url))
-                                else:
-                                    if 'go-url' not in result[url]:
-                                        result[url]['go-url'] = dict()
-                                    result[url]['go-url'][
-                                        go_url] = go_response.url
-                                    '''
-                                    result.update(self.check_urls(
-                                        [go_response.url], recurse=False))
-                                    '''
+                        if response.status_code == 200:
+                            if response.url != url:
+                                logging.warn('{0} redirects to {1}'.format(
+                                    url, response.url))
+                            if '<meta name="generator" content="WordPress' not \
+                                    in response.text:
+                                logging.debug('Not a WordPress page apparently')
+                            else:
+                                logging.debug('Found WordPress <meta> tag')
+                                srcset_urls = set()
+                                for line in response.text.split('\n'):
+                                    if ' srcset="' in line and '><img ' in line:
+                                        for surl in self.pick_urls(line):
+                                            if surl.endswith('.jpg') or \
+                                                    '.jpg?' in surl:
+                                                logging.debug('Skip JPG URL {0}'
+                                                    .format(surl))
+                                                continue
+                                            if surl.endswith('.png') or \
+                                                    '.png?' in surl:
+                                                logging.debug('Skip PNG URL {0}'
+                                                    .format(surl))
+                                                continue
+                                            srcset_urls.add(surl)
+                                logging.debug('srcset= URLS: {0!r}'.format(
+                                    srcset_urls))
+                                if len(srcset_urls) > 5:
+                                    logging.info(
+                                        'List of URLs too long, skipping')
+                                    srcset_urls = []
+                                for go_url in srcset_urls:
+                                    try:
+                                        go_response = _fetch(go_url)
+                                    except FetchError as exc:
+                                        logging.warn('Failed to fetch {0} '
+                                            '({1!r})'.format(go_url, exc))
+                                        continue
+                                    if go_response.url == go_url:
+                                        logging.debug('No redirect {0}'.format(
+                                            go_url))
+                                    else:
+                                        if 'go-url' not in result[url]:
+                                            result[url]['go-url'] = dict()
+                                        result[url]['go-url'][
+                                            go_url] = go_response.url
+                                        '''
+                                        result.update(self.check_urls(
+                                            [go_response.url], recurse=False))
+                                        '''
 
-            except FetchError as exc:
-                logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
+                except FetchError as exc:
+                    logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
 
         return result
 
