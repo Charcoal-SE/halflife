@@ -214,7 +214,8 @@ class Halflife ():
             phone_min = 9
             phone_max = 14
             phones = []
-            for alpha, candidate in groupby(post, key=str.isalpha):
+            for alpha, candidate in groupby(post,
+                    key=lambda x: x.isalpha() or '/' == x):
                 if not alpha:
                     candidate = ''.join(ch for ch in candidate if ch.isdigit())
                     if phone_min <= len(candidate) <= phone_max:
@@ -776,7 +777,6 @@ class Halflife ():
     def phone_query (self, phone):
         regex = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(
             r'[^A-Za-z0-9_]*'.join(phone))
-        logging.warn('tp_query({0!r})'.format(regex)) ########
         return self.tp_query(regex)
         
     def domain_query (self, domain, is_regex=False):
