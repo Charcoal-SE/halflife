@@ -639,7 +639,8 @@ class Halflife ():
 
                         if response.status_code == 200:
                             if response.url != url:
-                                logging.warn('{0} redirects to {1}'.format(
+                                #logging.warn('`{0}` redirects to `{1}`'.format(
+                                logging.warn('`{0!r}` redirects to `{1!r}`'.format(
                                     url, response.url))
                             if '<meta name="generator" content="WordPress' not \
                                     in response.text:
