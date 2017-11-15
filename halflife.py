@@ -179,6 +179,7 @@ class Halflife ():
             'twitter.com',
             'jsfiddle.net',
             'npmjs.com',
+            'tcl.tk',
             'imgur.com',
             'wikipedia.org',
             'doi.org',
