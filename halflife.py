@@ -257,8 +257,9 @@ class Halflife ():
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
         post_id = message['id']
-        logging.warn('{id}: Check post https:{link} ({weight})'.format(
-            id=post_id, link=message[':meta']['link'], weight=weight))
+        logging.warn('[{id}](https://metasmoke.erwaysoftware.com/post/{id}):'
+            ' Check post https:{link} ({weight})'.format(
+                id=post_id, link=message[':meta']['link'], weight=weight))
         logging.debug('url: {url}'.format(url=message['link']))
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
