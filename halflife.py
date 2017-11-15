@@ -314,12 +314,12 @@ class Halflife ():
 
             for url in url_result:
 
-                logging.warn('{id}: Extracted URL {url}'.format(
+                logging.warn('{id}: Extracted URL `{url}`'.format(
                     id=post_id, url=url))
 
                 if 'domain_check' not in url_result[url]:
                     logging.debug(
-                        '{id}: No domain_check result for {url}'.format(
+                        '{id}: No domain_check result for `{url}`'.format(
                             id=post_id, url=url))
                     ######## TODO: maybe check :why here too?
                 else:
@@ -340,20 +340,20 @@ class Halflife ():
                 if 'request_check' in url_result[url]:
                     status = url_result[url]['request_check'].status_code
                     if status != 200:
-                        logging.warn('{id}: HTTP status {status} for {url}'
+                        logging.warn('{id}: HTTP status {status} for `{url}`'
                             .format(id=post_id, status=status, url=url))
 
                 if 'go-url' in url_result[url]:
                     for go_url in url_result[url]['go-url']:
-                        logging.warn('{id}: Wordpress promotion URL {url} '
-                            'redirects to {dest}'.format(
+                        logging.warn('{id}: Wordpress promotion URL `{url}` '
+                            'redirects to `{dest}`'.format(
                                 id=post_id, url=go_url,
                                     dest=url_result[url]['go-url'][go_url]))
 
                 if 'dns_check' not in url_result[url] or \
                         'host' not in url_result[url]['dns_check']:
-                    logging.debug('{id}: no dns_check result for {url}'.format(
-                        id=post_id, url=url))
+                    logging.debug('{id}: no dns_check result for `{url}`'
+                        .format(id=post_id, url=url))
                 else:
                     host = url_result[url]['dns_check']['host']
                     if url_result[url]['dns_check'][':cached']:
@@ -377,7 +377,7 @@ class Halflife ():
                                     id=post_id, host=host, ip=ip, rdns=rdns))
 
                 if 'tail_check' not in url_result[url]:
-                    logging.debug('{id}: no tail from URL {url}'.format(
+                    logging.debug('{id}: no tail from URL `{url}`'.format(
                         id=post_id, url=url))
                 else:
                     for tail, result in url_result[url]['tail_check'].items():
@@ -430,8 +430,8 @@ class Halflife ():
                                 id=post_id, tail=tail, result=result))
 
                 if 'metasmoke' not in url_result[url]:
-                    logging.debug('{id}: no metasmoke result for {url}'.format(
-                        id=post_id, url=url))
+                    logging.debug('{id}: no metasmoke result for `{url}`'
+                        .format(id=post_id, url=url))
                 else:
                     hits = url_result[url]['metasmoke']
                     count = len(hits['hits'])
@@ -526,7 +526,7 @@ class Halflife ():
             if url in self.url_visit_cache:
                 ######## TODO: make url_visit_cache objects opaque
                 logging.warn('Visited URL at {0};'
-                    ' returning cached result for {1}'.format(
+                    ' returning cached result for `{1}`'.format(
                         self.url_visit_cache[url][0], url))
                 return self.url_visit_cache[url][1]
             try:
@@ -546,7 +546,7 @@ class Halflife ():
                         'Connection': 'keep-alive', # is this safe?
                         'Upgrade-Insecure-Requests': '1',
                         })
-                logging.info('Status {0} for URL {1}'.format(
+                logging.info('Status {0} for URL `{1}`'.format(
                     response.status_code, url))
                 logging.debug('Fetched {0}'.format(response.text))
                 ######## TODO: make url_visit_cache objects opaque
@@ -555,7 +555,8 @@ class Halflife ():
                 return response
             except (ConnectionError, requests.exceptions.TooManyRedirects
                     ) as exc:
-                logging.warn('Failed to fetch URL {0} ({1!r})'.format(url, exc))
+                logging.warn('Failed to fetch URL `{0}` ({1!r})'.format(
+                    url, exc))
                 raise FetchError(str(exc))
 
         seen = set()
@@ -687,7 +688,8 @@ class Halflife ():
                                         '''
 
                 except FetchError as exc:
-                    logging.warn('Failed to fetch {0} ({1!r})'.format(url, exc))
+                    logging.warn('Failed to fetch `{0}` ({1!r})'.format(
+                        url, exc))
 
         return result
 
