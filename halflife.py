@@ -590,7 +590,7 @@ class Halflife ():
                             break
                 if whitelisted:
                     result[url]['domain_check'] = {host: 'whitelisted'}
-                    #continue
+                    continue
                 elif redirector:
                     result[url]['domain_check'] = {host: 'redirector'}
                 elif self.listed('^' + host_re, 'blacklisted_websites.txt'):
@@ -606,7 +606,7 @@ class Halflife ():
                         logging.error('Could not perform domain query for {0}'
                             ' ({1})'.format(host, err))
 
-            if not redirector or whitelisted:
+            if not redirector: # or whitelisted:
                 if tail:
                     tailresult = None
                     tailcopy = tail
@@ -631,7 +631,7 @@ class Halflife ():
 
                 result[url]['dns_check'] = self.dns(host)
 
-            if not whitelisted:
+            #if not whitelisted:
                 try:
                     if recurse:
                         response = _fetch(url)
