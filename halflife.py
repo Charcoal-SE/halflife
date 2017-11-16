@@ -219,6 +219,9 @@ class Halflife ():
                     key=lambda x: x.isalpha() or '/' == x):
                 if not alpha:
                     candidate = ''.join(ch for ch in candidate if ch.isdigit())
+                    if len(candidate)-2 > len(candidate.rstrip('0')):
+                        # probably a big number with many trailing zeros
+                        continue
                     if phone_min <= len(candidate) <= phone_max:
                         phones.append(candidate)
             return phones
