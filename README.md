@@ -10,6 +10,11 @@ before.
 Down the line, I hope to be able to enable automatic blacklisting when a
 domain name passes the criteria we have for updating the blacklists.
 
+Results are currently logged to a websocket on
+`ws://ec2-52-208-37-129.eu-west-1.compute.amazonaws.com:8888`
+and relayed by the PulseMonitor bot in the chat room
+[Charcoal Test](https://chat.stackexchange.com/rooms/65945/charcoal-test).
+
 
 Configuration
 -----------
@@ -34,6 +39,24 @@ of the one where you have checked out `halflife`.
 	cd ../SmokeDetector
 	ln -s ../halflife/halflife.conf .
     ../halflife/halflife.py
+
+
+Hacking
+-------
+
+For quick testing, the script `nst.py` can be used to run Halflife
+on a set of JSON results from Metasmoke.
+
+    $ curl -s -o output.json 'https://metasmoke.erwaysoftware.com/search.json'
+
+    $ ./nst.py output.json
+
+You can use any search you like; the regular Metasmoke search page
+returns a link to the same results in JSON format in the footer.
+(The operative difference is to use the URL path `/search.json` instead
+of just `/search`).
+The default search simply returns the latest 100 posts
+which were archived by Metasmoke (including any false positives).
 
 
 Docker Image
