@@ -614,7 +614,7 @@ class Halflife ():
                         logging.error('Could not perform domain query for {0}'
                             ' ({1})'.format(host, err))
 
-            if not redirector: # or whitelisted:
+            if not redirector and not whitelisted:
                 if tail:
                     tailresult = None
                     tailcopy = tail
@@ -639,7 +639,7 @@ class Halflife ():
 
                 result[url]['dns_check'] = self.dns(host)
 
-            #if not whitelisted:
+            if not whitelisted:
                 try:
                     if recurse:
                         response = _fetch(url)
