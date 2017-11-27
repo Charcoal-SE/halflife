@@ -519,6 +519,14 @@ class Halflife ():
                 candidate = candidate.rstrip('">')
                 if '%20' in candidate:
                     continue
+                elif candidate.startswith('http://http') and \
+                    not candidate.startswith(
+                        ('http://http.', 'http://https.')):
+                    candidate = candidate[7:]
+                elif candidate.startswith('https://http') and \
+                    not candidate.startswith(
+                        ('https://http.', 'https://https.')):
+                    candidate = candidate[8:]
                 urls.append(candidate)
         return urls
 
