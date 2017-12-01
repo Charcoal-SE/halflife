@@ -183,6 +183,7 @@ class Halflife ():
             'mozilla.org',
             'drupal.org',
             'tcl.tk',
+            'android-x86.org',
             'imgur.com',
             'wikipedia.org',
             'torproject.org',
