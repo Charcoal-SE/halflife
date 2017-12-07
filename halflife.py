@@ -175,6 +175,7 @@ class Halflife ():
             'microsoft.com',
             'azurewebsites.net',
             'apple.com',
+            'icloud.com',
             'facebook.com',
             'twitter.com',
             'amzn.to',
