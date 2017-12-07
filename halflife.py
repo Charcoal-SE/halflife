@@ -196,6 +196,7 @@ class Halflife ():
             'tinyurl.com',
             'goo.gl',
             'lnkd.in',
+            't.co',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
