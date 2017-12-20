@@ -462,10 +462,14 @@ class Halflife ():
 
 
     def api_query(self, route, filter=None):
-        logging.info('query: /api/{route}'.format(route=route))
         params = {'key': self.key}
         if filter:
             params['filter'] = filter
+        ######## FIXME workaround for metasmoke #301
+        else:
+            params['filter'] = ''
+        logging.info('query: /api/{route} (params: {params})'.format(
+            route=route, params=params))
         req = requests.get(
             'https://metasmoke.erwaysoftware.com/api/{route}'.format(
                 route=route),
@@ -477,6 +481,7 @@ class Halflife ():
             logging.error('Query {0} did not return valid JSON: {1!r}'
                 .format(route, req.text))
             result = {'error': 'Invalid JSON {0!r}'.format(req.text)}
+            raise
         if 'error' in result:
             raise MetasmokeApiError(result['error'])
         return result
@@ -763,8 +768,33 @@ class Halflife ():
         post_date_min = None
         for hit in hits:
             self.get_post_metainformation(
-                ######## FIXME: ad-hoc filter
-                hit, filter='AAAAAAAAAAO//gAAAAAAAUA=')
+                # Filter picks
+                # [X] posts.id
+                # [X] posts.title
+                # [X] posts.body
+                # [X] posts.link
+                # [X] posts.post_creation_date
+                # [X] posts.created_at
+                # [ ] posts.updated_at
+                # [X] posts.site_id
+                # [ ] posts.user_link
+                # [ ] posts.username
+                # [X] posts.why
+                # [ ] posts.user_reputation
+                # [X] posts.score
+                # [ ] posts.upvote_count
+                # [ ] posts.downvote_count
+                # [ ] posts.stack_exchange_user_id
+                # [X] posts.is_tp
+                # [X] posts.is_fp
+                # [X] posts.is_naa
+                # [ ] posts.revision_count
+                # [X] posts.deleted_at
+                # -v-v-v-v-v v2 only -v-v-v-v-v-v-
+                # [ ] posts.smoke_detector_id
+                # [ ] posts.autoflagged
+                #hit, filter='AAAAAAAAAPSjgAAAAAABAA==')
+                hit, filter='')
             post_date = datetime.datetime.strptime(
                 hit[':meta']['created_at'][0:19], '%Y-%m-%dT%H:%M:%S')
             if post_date_max is None or post_date > post_date_max:
