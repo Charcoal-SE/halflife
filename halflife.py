@@ -153,6 +153,7 @@ class MetasmokeApiError(Exception):
 class Halflife ():
     def __init__ (self, key):
         self.key = key
+        self.previous_id = None
 
         self.domain_whitelist = [
             'i.stack.imgur.com',
@@ -269,6 +270,12 @@ class Halflife ():
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
         post_id = message['id']
+
+        if self.previous_id != None and int(post_id) != self.previous_id+1:
+            logging.warn('[{id}] is not {previous}+1 @quartata'.format(
+                id=post_id, previous=self.previous_id))
+        self.previous_id = int(post_id)
+
         logging.warn('[{id}](https://metasmoke.erwaysoftware.com/post/{id}):'
             ' Check post https:{link} ({weight})'.format(
                 id=post_id, link=message[':meta']['link'], weight=weight))
