@@ -272,7 +272,7 @@ class Halflife ():
         post_id = message['id']
 
         if self.previous_id != None and int(post_id) != self.previous_id+1:
-            logging.warn('[{id}] is not {previous}+1 @quartata'.format(
+            logging.warn('[{id}] is not {previous}+1'.format(
                 id=post_id, previous=self.previous_id))
         self.previous_id = int(post_id)
 
