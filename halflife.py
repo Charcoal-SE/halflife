@@ -203,6 +203,7 @@ class Halflife ():
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
         self.url_visit_cache = dict()
+        self.ascache = dict()
 
         self.autoflagging_threshold = 280
         self.blacklist_thres = 30  # 30 hits or more means blacklist
@@ -266,6 +267,115 @@ class Halflife ():
                     else:
                         matches[parts[1]].append(item)
             return matches
+
+        def host_report(url_result, url, post_id):
+            """
+            Summarize results from url_check(url)
+            """
+            if 'dns_check' not in url_result or \
+                    'host' not in url_result['dns_check']:
+                logging.debug('{id}: no dns_check result for `{url}`'
+                    .format(id=post_id, url=url))
+            else:
+                host = url_result['dns_check']['host']
+                if url_result['dns_check'][':cached']:
+                    logging.info('{id}: {host}: cached DNS result, '
+                        'not reporting again'.format(id=post_id, host=host))
+                else:
+                    logging.warn('{id}: {host}: ns {ns}'.format(
+                        id=post_id, host=host,
+                            ns=url_result['dns_check']['ns']))
+                    for ip in url_result['dns_check']['a']:
+                        if ip in url_result['dns_check']['rdns']:
+                            rdns = url_result['dns_check']['rdns'][ip]
+                            if rdns == None:
+                                rdns = ''
+                            if len(rdns) == 1:
+                                rdns = rdns[0]
+                        else:
+                            rdns = ''
+                        logging.warn('{id}: {host}: ip {ip} ({rdns})'.format(
+                            id=post_id, host=host, ip=ip, rdns=rdns))
+
+                        if 'asn' in url_result['dns_check']:
+                            asn = url_result['dns_check']['asn']
+                            logging.warn('{id}: {host}: ip {ip} AS {asn} '
+                                '({asname}/{cc})'.format(
+                                    id=post_id, host=host, ip=ip,
+                                        asn=asn[0], asname=asn[1]['name'],
+                                            cc=asn[1]['cc']))
+
+            if 'tail_check' not in url_result:
+                logging.debug('{id}: no tail from URL `{url}`'.format(
+                    id=post_id, url=url))
+            else:
+                for tail, result in url_result['tail_check'].items():
+                    if not result:
+                        tail = tail.lower()
+                        if tail in message[':why']:
+                            result = 'matched (watched or blacklisted)'
+                        else:
+                            for suffix in ['-be', '-fr', '-us',
+                                '-south-africa', '-supplement', '-cream',
+                                '-serum', '-garcinia', '-force', '-skin',
+                                '-pro', '-oil', '-male-enhancement',
+                                '-anti-aging']:
+                                if tail.endswith(suffix):
+                                    tail = tail[:-len(suffix)]
+                            for why in message[':why']:
+                                if len(why) > 2*len(tail) or \
+                                        any([x in why
+                                            for x in ['link at end']]):
+                                    pass
+                                elif tail == why.lower():
+                                    result = 'matched in ' + \
+                                        '; '.join(message[':why'][why])
+                                    break
+                                elif tail in why.lower().replace(url, ''):
+                                    if result:
+                                        result += '; '
+                                    else:
+                                        result = ''
+                                    result += 'matched in ' + why
+
+                    if not result or result == 'watched':
+                        tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
+                        try:
+                            tail_query = self.tp_query(tail_re)
+                            logging.warn('{id}: regex {re} search:'
+                                ' {tp}/{all} hits'.format(
+                                    id=post_id,
+                                    re=tail.replace('-', r'\W?'),
+                                    tp=tail_query['tp_count'],
+                                    all=len(tail_query['hits'])))
+                        except MetasmokeApiError as err:
+                            logging.error('Could not perform query for {0}'
+                                ' ({1})'.format(tail_re, err))
+
+                    if not result:
+                        result = 'not blacklisted or watched'
+                    logging.warn(
+                        '{id}: URL tail {tail} is {result}'.format(
+                            id=post_id, tail=tail, result=result))
+
+            if 'metasmoke' not in url_result:
+                logging.debug('{id}: no metasmoke result for `{url}`'
+                    .format(id=post_id, url=url))
+            else:
+                hits = url_result['metasmoke']
+                count = len(hits['hits'])
+                if count == 0:
+                    logging.warn('{id}: {host}: No metasmoke hits'.format(
+                        id=post_id, host=host))
+                elif count == 1:
+                    logging.warn('{id}: {host}: first hit'.format(
+                        id=post_id, host=host))
+                else:
+                    logging.warn(
+                        '{id}: {host}: {tp}/{all} over {span}'.format(
+                            id=post_id, host=host, tp=hits['tp_count'],
+                            all=count, span=hits['timespan']))
+
 
         self.get_post_metainformation(message)
         weight = message[':meta']['reason_weight']
@@ -365,108 +475,14 @@ class Halflife ():
 
                 if 'go-url' in url_result[url]:
                     for go_url in url_result[url]['go-url']:
+                        dest = url_result[url]['go-url'][go_url]
                         logging.warn('{id}: Wordpress promotion URL `{url}` '
                             'redirects to `{dest}`'.format(
-                                id=post_id, url=go_url,
-                                    dest=url_result[url]['go-url'][go_url]))
+                                id=post_id, url=go_url, dest=dest))
+                        url_check = self.check_urls([dest], recurse=False)
+                        host_report(url_check[dest], dest, post_id)
 
-                if 'dns_check' not in url_result[url] or \
-                        'host' not in url_result[url]['dns_check']:
-                    logging.debug('{id}: no dns_check result for `{url}`'
-                        .format(id=post_id, url=url))
-                else:
-                    host = url_result[url]['dns_check']['host']
-                    if url_result[url]['dns_check'][':cached']:
-                        logging.info('{id}: {host}: cached DNS result, '
-                            'not reporting again'.format(id=post_id, host=host))
-                    else:
-                        logging.warn('{id}: {host}: ns {ns}'.format(
-                            id=post_id, host=host,
-                            ns=url_result[url]['dns_check']['ns']))
-                        for ip in url_result[url]['dns_check']['a']:
-                            if ip in url_result[url]['dns_check']['rdns']:
-                                rdns = url_result[url]['dns_check']['rdns'][ip]
-                                if rdns == None:
-                                    rdns = ''
-                                if len(rdns) == 1:
-                                    rdns = rdns[0]
-                            else:
-                                rdns = ''
-                            logging.warn('{id}: {host}: ip {ip} '
-                                '({rdns})'.format(
-                                    id=post_id, host=host, ip=ip, rdns=rdns))
-
-                if 'tail_check' not in url_result[url]:
-                    logging.debug('{id}: no tail from URL `{url}`'.format(
-                        id=post_id, url=url))
-                else:
-                    for tail, result in url_result[url]['tail_check'].items():
-                        if not result:
-                            tail = tail.lower()
-                            if tail in message[':why']:
-                                result = 'matched (watched or blacklisted)'
-                            else:
-                                for suffix in ['-be', '-fr', '-us',
-                                    '-south-africa', '-supplement', '-cream',
-                                    '-serum', '-garcinia', '-force', '-skin',
-                                    '-pro', '-oil', '-male-enhancement',
-                                    '-anti-aging']:
-                                    if tail.endswith(suffix):
-                                        tail = tail[:-len(suffix)]
-                                for why in message[':why']:
-                                    if len(why) > 2*len(tail) or \
-                                            any([x in why
-                                                for x in ['link at end']]):
-                                        pass
-                                    elif tail == why.lower():
-                                        result = 'matched in ' + \
-                                            '; '.join(message[':why'][why])
-                                        break
-                                    elif tail in why.lower().replace(url, ''):
-                                        if result:
-                                            result += '; '
-                                        else:
-                                            result = ''
-                                        result += 'matched in ' + why
-
-                        if not result or result == 'watched':
-                            tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
-                            try:
-                                tail_query = self.tp_query(tail_re)
-                                logging.warn('{id}: regex {re} search:'
-                                    ' {tp}/{all} hits'.format(
-                                        id=post_id,
-                                        re=tail.replace('-', r'\W?'),
-                                        tp=tail_query['tp_count'],
-                                        all=len(tail_query['hits'])))
-                            except MetasmokeApiError as err:
-                                logging.error('Could not perform query for {0}'
-                                    ' ({1})'.format(tail_re, err))
-
-                        if not result:
-                            result = 'not blacklisted or watched'
-                        logging.warn(
-                            '{id}: URL tail {tail} is {result}'.format(
-                                id=post_id, tail=tail, result=result))
-
-                if 'metasmoke' not in url_result[url]:
-                    logging.debug('{id}: no metasmoke result for `{url}`'
-                        .format(id=post_id, url=url))
-                else:
-                    hits = url_result[url]['metasmoke']
-                    count = len(hits['hits'])
-                    if count == 0:
-                        logging.warn('{id}: {host}: No metasmoke hits'.format(
-                            id=post_id, host=host))
-                    elif count == 1:
-                        logging.warn('{id}: {host}: first hit'.format(
-                            id=post_id, host=host))
-                    else:
-                        logging.warn(
-                            '{id}: {host}: {tp}/{all} over {span}'.format(
-                                id=post_id, host=host, tp=hits['tp_count'],
-                                all=count, span=hits['timespan']))
-
+                host_report(url_result[url], url, post_id)
 
     def api_query(self, route, filter=None):
         params = {'key': self.key}
@@ -880,14 +896,37 @@ class Halflife ():
                 continue
             cleanaddr = addr.rstrip('.')
             if isip(cleanaddr):
-                raddr = '.'.join(
-                    reversed(cleanaddr.split('.'))) + '.in-addr.arpa.'
-                rdns = _dig('cname', raddr)
+                raddr = '.'.join(reversed(cleanaddr.split('.')))
+                rdns = _dig('cname', raddr + '.in-addr.arpa.')
                 if rdns == ['']:
-                    rdns = _dig('ptr', raddr)
+                    rdns = _dig('ptr', raddr + '.in-addr.arpa.')
                 if rdns == ['']:
                     rdns = None
                 result['rdns'][addr] = rdns
+
+                asr = _dig('txt', raddr + '.origin.asn.cymru.com.')
+                if asr == ['']:
+                    asr = None
+                elif ' | ' in asr[0]:
+                    asn, prefix, cc, registry, alloc_date = \
+                        asr[0].strip('"').split(' | ')
+                    if asn not in self.ascache:
+                        asquery = 'AS' + asn + '.asn.cymru.com'
+                        asq = _dig('txt', asquery)
+                        if asq == ['']:
+                            logging.warn('AS query for {asquery} failed'.format(
+                                asquery))
+                        else:
+                            # asn, cc, registry, alloc_date, asname
+                            asfield = asq[0].strip('"').split(' | ')
+                            self.ascache[asn] = {
+                                'cc': asfield[1],
+                                'registry': asfield[2],
+                                'alloc_date': asfield[3],
+                                'name': asfield[4],
+                                }
+                    ######## FIXME: fugly
+                    result['asn'] = (asn, self.ascache[asn])
 
         ip6 = _dig('aaaa', host)
         result['aaaa'] = ip6
@@ -898,8 +937,12 @@ class Halflife ():
 
 
 if __name__ == '__main__':
+    from sys import argv
+    loglevel = logging.WARN
+    if '-d' in argv or '--debug' in argv:
+        loglevel = logging.DEBUG
     logging.basicConfig(
-        level=logging.WARN, format='%(module)s:%(asctime)s:%(message)s')
+        level=loglevel, format='%(module)s:%(asctime)s:%(message)s')
     with open('halflife.conf', 'r') as conffile:
         conf = json.loads(conffile.read())
     h = HalflifeClient(key=conf['metasmoke-key'])
