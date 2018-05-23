@@ -381,9 +381,15 @@ class Halflife ():
         weight = message[':meta']['reason_weight']
         post_id = message['id']
 
-        if self.previous_id != None and int(post_id) != self.previous_id+1:
-            logging.warn('[{id}] is not {previous}+1'.format(
-                id=post_id, previous=self.previous_id))
+        if self.previous_id != None:
+            if int(post_id) == self.previous_id:
+                logging.warn('{id} already seen; not processing again'.format(
+                    post_id))
+                return
+            # else
+            if int(post_id) != self.previous_id+1:
+                logging.warn('[{id}] is not {previous}+1'.format(
+                    id=post_id, previous=self.previous_id))
         self.previous_id = int(post_id)
 
         logging.warn('[{id}](https://metasmoke.erwaysoftware.com/post/{id}):'
