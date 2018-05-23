@@ -285,7 +285,7 @@ class Halflife ():
                     logging.warn('{id}: {host}: ns {ns}'.format(
                         id=post_id, host=host,
                             ns=url_result['dns_check']['ns']))
-                    for ip in url_result['dns_check']['a']:
+                    for ip in set(url_result['dns_check']['a']):
                         if ip in url_result['dns_check']['rdns']:
                             rdns = url_result['dns_check']['rdns'][ip]
                             if rdns == None:
@@ -479,8 +479,10 @@ class Halflife ():
                         logging.warn('{id}: Wordpress promotion URL `{url}` '
                             'redirects to `{dest}`'.format(
                                 id=post_id, url=go_url, dest=dest))
-                        url_check = self.check_urls([dest], recurse=False)
-                        host_report(url_check[dest], dest, post_id)
+                        if dest not in url_result and \
+                                dest + '/' not in url_result:
+                            url_check = self.check_urls([dest], recurse=False)
+                            host_report(url_check[dest], dest, post_id)
 
                 host_report(url_result[url], url, post_id)
 
