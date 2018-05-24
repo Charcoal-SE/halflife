@@ -57,11 +57,12 @@ class ActionCableClient ():
         # The demo code uses a thread here but that seems excessive
         try:
             arg = json.loads(message)
-        except json.decoder.JSONDecodeError as err:
+        #except json.decoder.JSONDecodeError as err:
+        except Exception as err:        
             ######## TODO:logging
             logging.warn('{err} (message {message})'.format(
                 err=err, message=message))
-            return
+            return            
         if 'type' in arg and arg['type'] in self.type_hooks:
             self.type_hooks[arg['type']](ws, arg)
         elif 'message' in arg:
