@@ -39,6 +39,11 @@ class ActionCableClient ():
             'not_flagged': self.on_not_flagged,
             'statistic': self.on_statistic
             }
+        self.event_hooks = {
+            'Post': {
+                'create': self.on_event_post_create
+                }
+            }
         self.last_ping_time = None
         self.sub_id = None
 
@@ -66,6 +71,13 @@ class ActionCableClient ():
         if 'type' in arg and arg['type'] in self.type_hooks:
             self.type_hooks[arg['type']](ws, arg)
         elif 'message' in arg:
+            if 'event_class' in arg['message'] \
+                    and 'event_type' in arg['message']:
+                if arg['message']['event_class'] in self.event_hooks:
+                    hook_dict = self.event_hooks[arg['message']['event_class']]
+                    if arg['message']['event_type'] in hook_dict:
+                        return hook_dict[arg['message']['event_type']](ws, arg)
+            # else:
             for key in self.message_hooks:
                 if key in arg['message']:
                     self.message_hooks[key](ws, arg)
@@ -86,7 +98,8 @@ class ActionCableClient ():
             'identifier': json.dumps({
                 'channel': 'ApiChannel',
                 'key': self.key,
-                'command': 'subscribe'
+                'command': 'subscribe',
+                'events': 'posts#create'
                 })}))
 
     def on_subscription_confirmed(self, ws, arg):
@@ -114,6 +127,9 @@ class ActionCableClient ():
     def on_close(self, ws):
         logging.info('close')
 
+    def on_event_post_create(self, ws, message):
+        logging.info('events:Post:create')
+
 
 class FetchError (Exception):
     pass
@@ -132,6 +148,8 @@ class HalflifeClient (ActionCableClient):
                     universal_newlines=True).stdout.strip(),
             uname().nodename, datetime.datetime.utcnow()))
 
+    '''
+    ######## TODO: remove dead code
     def on_flag (self, ws, arg):
         logging.info('flag_log {message}'.format(message=arg['message']))
         link = arg['message']['flag_log']['post']['link']
@@ -145,6 +163,20 @@ class HalflifeClient (ActionCableClient):
     def on_not_flagged (self, ws, arg):
         logging.info('not_flagged {message}'.format(message=arg['message']))
         self.checker.check(arg['message']['not_flagged']['post'])
+    '''
+    def on_event_post_create (self, ws, arg):
+        logging.info('event:Post:create {msg}'.format(msg=arg['message']))
+        if 'object' in arg['message']:
+            link = arg['message']['object']['link']
+            if link not in self.flagged:
+                self.checker.check(arg['message']['object'])
+                self.flagged.update([link])
+            else:
+                logging.info(
+                    'Already flagged {link}, not checking again'.format(
+                        link=link))
+        else:
+            logging.warn('No "object" in {message}'.format(arg['message']))
 
 
 class MetasmokeApiError(Exception):
