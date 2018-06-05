@@ -450,7 +450,7 @@ class Halflife ():
             cleaned_body))
 
         phones = set(find_phones(cleaned_body))
-        phones.union(set(find_phones(message['title'])))
+        phones = phones.union(set(find_phones(message['title'])))
         logging.info('Phone number candidates: {0!r}'.format(phones))
 
         phone_result = self.check_phones(phones)
