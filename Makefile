@@ -3,7 +3,7 @@ docker: docker-build.log
 	docker tag tripleee/halflife tripleee/halflife:latest
 	docker push tripleee/halflife:latest
 
-docker-build.log: Dockerfile halflife.py websocketd test
+docker-build.log: Dockerfile halflife.py halflife.conf websocketd test
 	# Check that we don't have unpushed commits
 	! git log --oneline @{u}.. | grep .
 	-awk 'END { print $$NF }' $@ | xargs docker rmi
