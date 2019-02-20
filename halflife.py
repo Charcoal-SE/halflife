@@ -181,6 +181,8 @@ class HalflifeClient (ActionCableClient):
                     self.flagged.update([link])
                 except DisabledError as e:
                     logging.warning('Untrapped DisabledError {0!r}'.format(e))
+                except Exception as e:
+                    logging.warning('Untrapped Exception {0!r}'.format(e))
             else:
                 logging.info(
                     'Already flagged {link}, not checking again'.format(
