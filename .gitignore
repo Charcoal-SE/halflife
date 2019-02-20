@@ -1,3 +1,4 @@
 halflife.conf
 __pycache__
 docker-build.log
+websocketd
