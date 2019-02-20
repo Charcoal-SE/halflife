@@ -135,6 +135,13 @@ class FetchError (Exception):
     pass
 
 
+class DisabledError(Exception):
+    """
+    Regex queries are disabled for now.
+    """
+    pass
+
+
 class HalflifeClient (ActionCableClient):
     def init_hook (self):
         self.flagged = set()
@@ -169,8 +176,11 @@ class HalflifeClient (ActionCableClient):
         if 'object' in arg['message']:
             link = arg['message']['object']['link']
             if link not in self.flagged:
-                self.checker.check(arg['message']['object'])
-                self.flagged.update([link])
+                try:
+                    self.checker.check(arg['message']['object'])
+                    self.flagged.update([link])
+                except DisabledError as e:
+                    logging.warning('Untrapped DisabledError {0!r}'.format(e))
             else:
                 logging.info(
                     'Already flagged {link}, not checking again'.format(
@@ -385,7 +395,7 @@ class Halflife ():
                                     re=tail.replace('-', r'\W?'),
                                     tp=tail_query['tp_count'],
                                     all=len(tail_query['hits'])))
-                        except MetasmokeApiError as err:
+                        except (MetasmokeApiError, DisabledError) as err:
                             logging.error('Could not perform query for {0}'
                                 ' ({1})'.format(tail_re, err))
 
@@ -695,7 +705,7 @@ class Halflife ():
                         result[url]['domain_check'] = {host: None}
                     try:
                         result[url]['metasmoke'] = self.domain_query(host)
-                    except MetasmokeApiError as err:
+                    except (MetasmokeApiError, DisabledError) as err:
                         logging.error('Could not perform domain query for {0}'
                             ' ({1})'.format(host, err))
 
@@ -817,6 +827,7 @@ class Halflife ():
         """
         Return hits, timespan, tp_count, below auto for a word-bounded regex.
         """
+        raise DisabledError('sorry, regex query is disabled')
         hits_query = self.word_query(regex)
         hits = hits_query['items']
         tp = [x for x in hits
