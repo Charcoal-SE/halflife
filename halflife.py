@@ -179,6 +179,11 @@ class Halflife ():
             for i in range(len(items)):
                 if items[i] == '':
                     continue
+
+                # ######## FIXME: quick and dirty, should put this in a separate dict?
+                if 'com.appmaster.akash' in items[i]:
+                    logging.warn('ping @tripleee comp.appmaster.akash')
+
                 if not items[i].startswith(
                         ('Body -', 'Title -', 'Username -', 'Position ', 'Positions ')):
                     offset=1
