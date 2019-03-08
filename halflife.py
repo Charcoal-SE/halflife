@@ -8,19 +8,13 @@ from itertools import groupby
 
 import requests
 
+from msapi import MetasmokeApi, MetasmokeApiError, DisabledError
 ######## TODO: maybe replace with actioncable-zwei
 # https://github.com/tobiasfeistmantl/python-actioncable-zwei
 from actioncable import ActionCableClient
 
 
 class FetchError (Exception):
-    pass
-
-
-class DisabledError(Exception):
-    """
-    Regex queries are disabled for now.
-    """
     pass
 
 
@@ -73,14 +67,12 @@ class HalflifeClient (ActionCableClient):
             logging.warning('No "object" in {message}'.format(arg['message']))
 
 
-class MetasmokeApiError(Exception):
-    pass
-
-
 class Halflife ():
     def __init__ (self, key):
         self.key = key
         self.previous_id = None
+
+        self.msapi = MetasmokeApi(self.key)
 
         self.domain_whitelist = [
             'i.stack.imgur.com',
@@ -247,6 +239,7 @@ class Halflife ():
             else:
                 for tail, result in url_result['tail_check'].items():
                     if not result:
+
                         tail = tail.lower()
                         if tail in message[':why']:
                             result = 'matched (watched or blacklisted)'
@@ -273,7 +266,7 @@ class Halflife ():
                                     else:
                                         result = ''
                                     result += 'matched in ' + why
-
+                    '''
                     if not result or result == 'watched':
                         tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
                         try:
@@ -287,7 +280,7 @@ class Halflife ():
                         except (MetasmokeApiError, DisabledError) as err:
                             logging.error('Could not perform query for {0}'
                                 ' ({1})'.format(tail_re, err))
-
+                    '''
                     if not result:
                         result = 'not blacklisted or watched'
                     logging.warning(
@@ -299,7 +292,7 @@ class Halflife ():
                     .format(id=post_id, url=url))
             else:
                 hits = url_result['metasmoke']
-                count = len(hits['hits'])
+                count = len(hits['items'])
                 if count == 0:
                     logging.warning('{id}: {host}: No metasmoke hits'.format(
                         id=post_id, host=host))
@@ -309,12 +302,11 @@ class Halflife ():
                 else:
                     logging.warning(
                         '{id}: {host}: {tp}/{all} over {span}'.format(
-                            id=post_id, host=host, tp=hits['tp_count'],
-                            all=count, span=hits['timespan']))
+                            id=post_id, host=host, tp=hits[':feedback']['tp'],
+                            all=hits[':feedback'][':all'], span=hits[':timespan']))
 
-
-        self.get_post_metainformation(message)
-        weight = message[':meta']['reason_weight']
+        self.msapi.get_post_metainformation(message)
+        weight = message[':weight']
         post_id = message['id']
 
         if self.previous_id != None:
@@ -335,7 +327,6 @@ class Halflife ():
         logging.debug('title: {title}'.format(title=message['title']))
         logging.debug('body: {body}'.format(body=message['body']))
         logging.debug('username: {user}'.format(user=message['username']))
-        self.get_post_reasons(message)
         message[':why'] = parse_why(message)
 
         ######## TODO: don't hardcode limit
@@ -352,7 +343,10 @@ class Halflife ():
         phones = set(find_phones(cleaned_body))
         phones = phones.union(set(find_phones(message['title'])))
         logging.info('Phone number candidates: {0!r}'.format(phones))
-
+        for phone in phones:
+            logging.warn('{id}: Extracted possible phone number {phone}'.format(
+                id=post_id, phone=phone))
+        '''
         phone_result = self.check_phones(phones)
         for phone in phone_result:
             logging.warning('{id}: Extracted possible phone number {phone}'
@@ -366,7 +360,7 @@ class Halflife ():
                         tp=phone_result[phone]['search']['tp_count'],
                         hits=len(phone_result[phone]['search']['hits']),
                         time=phone_result[phone]['search']['timespan']))
-
+        '''
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
@@ -377,6 +371,7 @@ class Halflife ():
             urls.update(self.pick_urls(cleaned_body))
 
         logging.info('urls are {urls!r}'.format(urls=urls))
+        logging.info('Metasmoke found {urls!r}'.format(urls=message[':domains']))
 
         if len(urls) > 5:
             logging.warning('Post had more than 5 unique URLs; skipping details.')
@@ -385,7 +380,31 @@ class Halflife ():
 
             url_result = self.check_urls(urls)
 
+            # ######## FIXME: this should probably be in msapi.py
+            message[':domain_id_map'] = dict()
+            message[':domain_id_whois'] = dict()
+            for domain in message[':domains']:
+                message[':domain_id_map'][domain['domain']] = domain['id']
+                message[':domain_id_whois'][domain['id']] = domain['whois']
+
+            for host in url_result[':metasmoke_domain_queue']:
+                if host in message[':domain_id_map']:
+                    domain_id = message[':domain_id_map'][host]
+                    try:
+                        host_result = self.msapi.domain_query(domain_id)
+                    except MetasmokeApiError as err:
+                        logging.error('Could not perform domain query for {0} ({1})'.
+                            format(host, err))
+                        continue
+                    for url in url_result[':metasmoke_domain_queue'][host]:
+                        url_result[url]['metasmoke'] = host_result
+                else:
+                    logging.warn('Domain {0} not extracted by metasmoke'.format(host))
+
             for url in url_result:
+
+                if url.startswith(':metasmoke'):
+                    continue
 
                 logging.warning('{id}: Extracted URL `{url}`'.format(
                     id=post_id, url=url))
@@ -429,49 +448,11 @@ class Halflife ():
 
                 host_report(url_result[url], url, post_id)
 
-    def api_query(self, route, filter=None):
-        params = {'key': self.key}
-        if filter:
-            params['filter'] = filter
-        ######## FIXME workaround for metasmoke #301
-        else:
-            params['filter'] = ''
-        logging.info('query: /api/{route} (params: {params})'.format(
-            route=route, params=params))
-        req = requests.get(
-            'https://metasmoke.erwaysoftware.com/api/{route}'.format(
-                route=route),
-            params=params)
-        try:
-            result = json.loads(req.text)
-            logging.info('query result: {0!r}'.format(result))
-        except json.decoder.JSONDecodeError:
-            logging.error('Query {0} did not return valid JSON: {1!r}'
-                .format(route, req.text))
-            result = {'error': 'Invalid JSON {0!r}'.format(req.text)}
-            raise
-        if 'error' in result:
-            raise MetasmokeApiError(result['error'])
-        return result
-
-    def _api_id_query(self, message, route_pattern, filter=None):
-        id = message['id']
-        return self.api_query(route_pattern.format(id), filter=filter)
-
-    def get_post_metainformation(self, message, filter=None):
-        if ':meta' not in message:
-            meta = self._api_id_query(message, 'posts/{0}', filter=filter)
-            message[':meta'] = meta['items'][0]
-
-    def get_post_reasons(self, message):
-        reasons = self._api_id_query(message, 'post/{0}/reasons')
-        message[':reasons'] = reasons['items']
-
-
+    '''
     def check_phones(self, phones):
-        '''
+        """
         Check a list of ostensible phone numbers.
-        '''
+        """
         result = dict()
         for phone in phones:
             result[phone] = {}
@@ -481,6 +462,7 @@ class Halflife ():
                 logging.error('Could not perform phone query for {0} ({1})'
                     .format(phone, err))
         return result
+    '''
 
     def pick_urls(self, string):
         """
@@ -554,7 +536,7 @@ class Halflife ():
                 raise FetchError(str(exc))
 
         seen = set()
-        result = dict()
+        result = {':metasmoke_domain_queue': dict()}
         for url in urls:
             result[url] = {}
             parts = url.split('/', maxsplit=3)
@@ -593,11 +575,10 @@ class Halflife ():
                         result[url]['domain_check'] = {host: 'watched'}
                     else:
                         result[url]['domain_check'] = {host: None}
-                    try:
-                        result[url]['metasmoke'] = self.domain_query(host)
-                    except (MetasmokeApiError, DisabledError) as err:
-                        logging.error('Could not perform domain query for {0}'
-                            ' ({1})'.format(host, err))
+                    if host in result[':metasmoke_domain_queue']:
+                        result[':metasmoke_domain_queue'][host].add(url)
+                    else:
+                        result[':metasmoke_domain_queue'][host] = set([url])
 
             if not redirector and not whitelisted:
                 if tail:
@@ -701,6 +682,7 @@ class Halflife ():
             logging.debug('returning False')
             return False
 
+    '''
     def word_query (self, regex):
         """
         Perform a regex query with word boundaries on both sides of the regex.
@@ -800,13 +782,7 @@ class Halflife ():
         regex = r'(^|[^A-Za-z0-9_]){0}([^A-Za-z0-9_]|$)'.format(
             r'[^A-Za-z0-9_]*'.join(phone))
         return self.tp_query(regex)
-        
-    def domain_query (self, domain, is_regex=False):
-        if is_regex:
-            domain = domain.replace(r'\W', '[^A-Za-z0-9_]')
-        else:
-            domain = domain.replace('.', r'\.')
-        return self.tp_query(domain)
+    '''
 
     def dns (self, host):
         ######## TODO: maybe replace with dnspython
