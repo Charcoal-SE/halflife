@@ -16,7 +16,8 @@ class DisabledError(Exception):
 
 
 class MetasmokeApi():
-    def __init__(self, key, baseurl='https://metasmoke.erwaysoftware.com/api/v2.0/'):
+    def __init__(self, key,
+            baseurl='https://metasmoke.erwaysoftware.com/api/v2.0/'):
         self.baseurl = baseurl
         self.key = key
 
@@ -49,13 +50,13 @@ class MetasmokeApi():
         id = message['id']
         return self.query(route_pattern.format(id), filterexp=filterexp)
 
-    def get_post_metainformation(self, message, filterexp=None):
+    def get_post_metainformation(self, message):
         if ':meta' not in message:
-            meta = self._api_id_query(message, 'posts/{0}', filterexp=filterexp)
+            meta = self._api_id_query(message, 'posts/{0}')
             message[':meta'] = meta['items'][0]
-            domains = self._api_id_query(message, 'posts/{0}/domains', filterexp=filterexp)
+            domains = self._api_id_query(message, 'posts/{0}/domains')
             message[':domains'] = domains['items']
-            reasons = self._api_id_query(message, 'posts/{0}/reasons', filterexp=filterexp)
+            reasons = self._api_id_query(message, 'posts/{0}/reasons')
             message[':reasons'] = reasons['items']
             message[':weight'] = sum(x['weight'] for x in reasons['items'])
 
@@ -80,7 +81,8 @@ class MetasmokeApi():
 
             for feedback in feedbacks['items']:
                 logging.debug('feedback {0} on post {1} is {2}'.format(
-                    feedback['id'], feedback['post_id'], feedback['feedback_type']))
+                    feedback['id'], feedback['post_id'],
+                        feedback['feedback_type']))
                 count[':all'] +=1
                 domain_feedback[':all'] += 1
 
@@ -91,8 +93,9 @@ class MetasmokeApi():
                         domain_feedback[ftype] += 1
                         break
                 else:
-                    logging.warn('feedback {0} on post {1}: unknown type {2}'.format(
-                        feedback['id'], feedback['post_id'], feedback['feedback_type']))
+                    logging.warning('feedback {0} on post {1}: unknown type {2}'
+                        .format(feedback['id'], feedback['post_id'],
+                            feedback['feedback_type']))
 
             item[':feedback'] = count
 

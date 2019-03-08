@@ -172,12 +172,13 @@ class Halflife ():
                 if items[i] == '':
                     continue
 
-                # ######## FIXME: quick and dirty, should put this in a separate dict?
+                # ######## FIXME: quick and dirty, put this in a separate dict?
                 if 'com.appmaster.akash' in items[i]:
                     logging.warn('ping @tripleee comp.appmaster.akash')
 
                 if not items[i].startswith(
-                        ('Body -', 'Title -', 'Username -', 'Position ', 'Positions ')):
+                        ('Body -', 'Title -', 'Username -',
+                         'Position ', 'Positions ')):
                     offset=1
                     while items[i-offset] == '':
                         offset += 1
@@ -303,7 +304,8 @@ class Halflife ():
                     logging.warning(
                         '{id}: {host}: {tp}/{all} over {span}'.format(
                             id=post_id, host=host, tp=hits[':feedback']['tp'],
-                            all=hits[':feedback'][':all'], span=hits[':timespan']))
+                            all=hits[':feedback'][':all'],
+                            span=hits[':timespan']))
 
         self.msapi.get_post_metainformation(message)
         weight = message[':weight']
@@ -311,8 +313,8 @@ class Halflife ():
 
         if self.previous_id != None:
             if int(post_id) == self.previous_id:
-                logging.warning('{id} already seen; not processing again'.format(
-                    post_id))
+                logging.warning(
+                    '{id} already seen; not processing again'.format(post_id))
                 return
             # else
             if int(post_id) != self.previous_id+1:
@@ -371,10 +373,12 @@ class Halflife ():
             urls.update(self.pick_urls(cleaned_body))
 
         logging.info('urls are {urls!r}'.format(urls=urls))
-        logging.info('Metasmoke found {urls!r}'.format(urls=message[':domains']))
+        logging.info('Metasmoke found {urls!r}'.format(
+            urls=message[':domains']))
 
         if len(urls) > 5:
-            logging.warning('Post had more than 5 unique URLs; skipping details.')
+            logging.warning(
+                'Post had more than 5 unique URLs; skipping details.')
 
         elif len(urls) > 0:
 
@@ -393,13 +397,15 @@ class Halflife ():
                     try:
                         host_result = self.msapi.domain_query(domain_id)
                     except MetasmokeApiError as err:
-                        logging.error('Could not perform domain query for {0} ({1})'.
-                            format(host, err))
+                        logging.error(
+                            'Could not perform domain query for {0} ({1})'
+                                .format(host, err))
                         continue
                     for url in url_result[':metasmoke_domain_queue'][host]:
                         url_result[url]['metasmoke'] = host_result
                 else:
-                    logging.warn('Domain {0} not extracted by metasmoke'.format(host))
+                    logging.warn('Domain {0} not extracted by metasmoke'.format(
+                        host))
 
             for url in url_result:
 
@@ -674,7 +680,8 @@ class Halflife ():
         if escape:
             host_re = host_re.replace('\\', '\\\\')
         try:
-            logging.debug('running {0!r}'.format(['grep', '-qis', host_re, listfile]))
+            logging.debug('running {0!r}'.format(
+                ['grep', '-qis', host_re, listfile]))
             subprocess.run(['grep', '-qis', host_re, listfile], check=True)
             logging.debug('returning True')
             return True
@@ -836,8 +843,8 @@ class Halflife ():
                         asquery = 'AS' + asn + '.asn.cymru.com'
                         asq = _dig('txt', asquery)
                         if asq == ['']:
-                            logging.warning('AS query for {asquery} failed'.format(
-                                asquery))
+                            logging.warning('AS query for {asquery} failed'
+                                .format(asquery))
                         else:
                             # asn, cc, registry, alloc_date, asname
                             asfield = asq[0].strip('"').split(' | ')
