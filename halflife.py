@@ -180,7 +180,7 @@ class Halflife ():
                 if items[i] == '':
                     continue
                 if not items[i].startswith(
-                        ('Body -', 'Title -', 'Username -', 'Position ')):
+                        ('Body -', 'Title -', 'Username -', 'Position ', 'Positions ')):
                     offset=1
                     while items[i-offset] == '':
                         offset += 1
@@ -332,6 +332,7 @@ class Halflife ():
         logging.debug('username: {user}'.format(user=message['username']))
         self.get_post_reasons(message)
         message[':why'] = parse_why(message)
+
         ######## TODO: don't hardcode limit
         if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
                 for x in message[':reasons']]):
