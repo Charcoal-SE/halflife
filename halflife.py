@@ -376,11 +376,7 @@ class Halflife ():
         logging.info('Metasmoke found {urls!r}'.format(
             urls=message[':domains']))
 
-        if len(urls) > 5:
-            logging.warning(
-                'Post had more than 5 unique URLs; skipping details.')
-
-        elif len(urls) > 0:
+        if len(urls) > 0:
 
             url_result = self.check_urls(urls)
 
