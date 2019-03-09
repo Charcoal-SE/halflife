@@ -6,9 +6,11 @@ import sys
 
 import halflife
 
-
-#logging.basicConfig(level=logging.INFO, format='%(module)s:%(message)s')
-logging.basicConfig(level=logging.WARN, format='%(module)s:%(message)s')
+loglevel = logging.WARNING
+if '--verbose' in sys.argv[1:]:
+    loglevel = logging.INFO
+    sys.argv.remove('--verbose')
+logging.basicConfig(level=loglevel, format='%(module)s:%(message)s')
 with open('halflife.conf') as conffile:
     conf = json.loads(conffile.read())
 if len(sys.argv) == 2:
