@@ -210,12 +210,8 @@ class Halflife ():
                     logging.warning('{id}: {host}: ns {ns}'.format(
                         id=post_id, host=host,
                             ns=url_result['dns_check']['ns']))
-                    seen_ip = set()
-                    for ip in url_result['dns_check']['a']:
-                        if ip in seen_ip:
-                            next
-                        seen_ip.update([ip])
-                        if ip in url_result['dns_check']['rdns']:
+                    for ip in set(url_result['dns_check']['a']):
+                        if ip in set(url_result['dns_check']['rdns']):
                             rdns = url_result['dns_check']['rdns'][ip]
                             if rdns == None:
                                 rdns = ''
