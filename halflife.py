@@ -5,6 +5,7 @@ import json
 import logging
 import subprocess
 from itertools import groupby
+import traceback
 
 import requests
 
@@ -58,7 +59,8 @@ class HalflifeClient (ActionCableClient):
                 except DisabledError as e:
                     logging.warning('Untrapped DisabledError {0!r}'.format(e))
                 except Exception as e:
-                    logging.warning('Untrapped Exception {0!r}'.format(e))
+                    traceback.print_exc()
+
             else:
                 logging.info(
                     'Already flagged {link}, not checking again'.format(
