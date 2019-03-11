@@ -13,7 +13,7 @@ RUN apk add --no-cache git bind-tools && \
         pip install -r docker-requirements.txt && \
     rm -rf /var/cache/apk/*
 
-ADD halflife.conf /home/halflife/SmokeDetector/
+ADD halflife.conf /home/halflife/halflife
 ADD docker-run-halflife /hl
 ADD docker-cron-15min /etc/periodic/15min/git-pull-sd
 ######## TODO: package as an apk package
