@@ -98,7 +98,7 @@ class MetasmokeApi():
             logging.info('feedback count for post {0}: {1}'.format(
                 item['id'], count))
 
-            if count['tp']/count[':all'] >= 0.9:
+            if count[':all'] > 0 and count['tp']/count[':all'] >= 0.9:
                 domain_feedback['tp'] += 1
             if count['naa'] > 0:
                 domain_feedback['naa'] += 1
