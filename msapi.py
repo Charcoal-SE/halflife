@@ -75,29 +75,36 @@ class MetasmokeApi():
             if post_date_min is None or post_date < post_date_min:
                 post_date_min = post_date
 
-            count = {'tp': 0, 'fp': 0, 'naa': 0, ':all': 0}
 
             feedbacks = self.query('feedbacks/post/{0}'.format(item['id']))
 
             for feedback in feedbacks['items']:
+                count = {'tp': 0, 'fp': 0, 'naa': 0, ':all': 0}
                 logging.debug('feedback {0} on post {1} is {2}'.format(
                     feedback['id'], feedback['post_id'],
                         feedback['feedback_type']))
                 count[':all'] +=1
-                domain_feedback[':all'] += 1
 
                 ftype_value = feedback['feedback_type']
                 for ftype in {'fp', 'tp', 'naa'}:
                     if ftype_value.startswith(ftype):
                         count[ftype] += 1
-                        domain_feedback[ftype] += 1
                         break
                 else:
                     logging.warning('feedback {0} on post {1}: unknown type {2}'
                         .format(feedback['id'], feedback['post_id'],
                             feedback['feedback_type']))
 
-            item[':feedback'] = count
+            logging.info('feedback count for post {0}: {1}'.format(
+                feedback['post_id'], count))
+
+            if count['tp']/count[':all'] >= 0.9:
+                domain_feedback['tp'] += 1
+            if count['naa'] > 0:
+                domain_feedback['naa'] += 1
+            if count['fp'] > 0:
+                domain_feedback['fp'] += 1
+            domain_feedback[':all'] += 1
 
         posts[':feedback'] = domain_feedback
         if post_date_min and post_date_max:
