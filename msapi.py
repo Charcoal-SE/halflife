@@ -78,8 +78,8 @@ class MetasmokeApi():
 
             feedbacks = self.query('feedbacks/post/{0}'.format(item['id']))
 
+            count = {'tp': 0, 'fp': 0, 'naa': 0, ':all': 0}
             for feedback in feedbacks['items']:
-                count = {'tp': 0, 'fp': 0, 'naa': 0, ':all': 0}
                 logging.debug('feedback {0} on post {1} is {2}'.format(
                     feedback['id'], feedback['post_id'],
                         feedback['feedback_type']))
