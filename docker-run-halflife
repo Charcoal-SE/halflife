@@ -4,8 +4,8 @@ crond
 install -o halflife -m 644 /dev/null /halflife.log
 su halflife <<':'
     websocketd -port 8888 tail -f /halflife.log &
-    cd /home/halflife/SmokeDetector
+    cd /home/halflife/halflife
     while true; do
-        python3 ../halflife/halflife.py
+        python3 ./halflife.py
     done>/halflife.log 2>&1
 :
