@@ -11,6 +11,7 @@ RUN apk add --no-cache git bind-tools && \
         git clone https://github.com/Charcoal-SE/SmokeDetector.git' && \
     cd /home/halflife/halflife && pip install -r requirements.txt && \
         pip install -r docker-requirements.txt && \
+	ln -s ../SmokeDetector/*_*.txt . && \
     rm -rf /var/cache/apk/*
 
 ADD halflife.conf /home/halflife/halflife
