@@ -840,7 +840,7 @@ class Halflife ():
                         asq = _dig('txt', asquery)
                         if asq == ['']:
                             logging.warning('AS query for {asquery} failed'
-                                .format(asquery))
+                                .format(asquery=asquery))
                         else:
                             # asn, cc, registry, alloc_date, asname
                             asfield = asq[0].strip('"').split(' | ')
