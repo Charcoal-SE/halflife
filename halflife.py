@@ -305,7 +305,9 @@ class Halflife ():
                             all=hits[':feedback'][':all'],
                             span=hits[':timespan']))
 
-        self.msapi.get_post_metainformation(message)
+        if not self.msapi.get_post_metainformation(message):
+            return None
+
         weight = message[':weight']
         post_id = message['id']
 

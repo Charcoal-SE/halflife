@@ -53,12 +53,18 @@ class MetasmokeApi():
     def get_post_metainformation(self, message):
         if ':meta' not in message:
             meta = self._api_id_query(message, 'posts/{0}')
-            message[':meta'] = meta['items'][0]
-            domains = self._api_id_query(message, 'posts/{0}/domains')
-            message[':domains'] = domains['items']
-            reasons = self._api_id_query(message, 'posts/{0}/reasons')
-            message[':reasons'] = reasons['items']
-            message[':weight'] = sum(x['weight'] for x in reasons['items'])
+            if 'items' in meta and len(meta['items']) > 0:
+                message[':meta'] = meta['items'][0]
+                domains = self._api_id_query(message, 'posts/{0}/domains')
+                message[':domains'] = domains['items']
+                reasons = self._api_id_query(message, 'posts/{0}/reasons')
+                message[':reasons'] = reasons['items']
+                message[':weight'] = sum(x['weight'] for x in reasons['items'])
+                return True
+            else:
+                logging.warn('No results for posts/{0} (result: {1!r})'.format(
+                    message['id'], meta))
+                return False
 
     def domain_query(self, domain_id):
         post_date_max = None
