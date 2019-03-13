@@ -500,7 +500,6 @@ class Halflife ():
             """
             Use requests to fetch the URL, pretend to be a browser.
             """
-            from requests.exceptions import ConnectionError
             if url in self.url_visit_cache:
                 ######## TODO: make url_visit_cache objects opaque
                 logging.warning('Visited URL at {0};'
@@ -531,8 +530,9 @@ class Halflife ():
                 self.url_visit_cache[url] = (
                     datetime.datetime.utcnow(), response)
                 return response
-            except (ConnectionError, requests.exceptions.TooManyRedirects
-                    ) as exc:
+            except (requests.exceptions.ConnectionError,
+                    requests.exceptions.TooManyRedirects,
+                    urllib3.exceptions.LocationParseError) as exc:
                 logging.warning('Failed to fetch URL `{0}` ({1!r})'.format(
                     url, exc))
                 raise FetchError(str(exc))
