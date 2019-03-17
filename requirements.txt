@@ -1,2 +1,2 @@
 requests
-websocket-client==0.48
+websocket-client>=0.54
