@@ -349,7 +349,7 @@ class Halflife ():
         phones = phones.union(set(find_phones(message['title'])))
         logging.info('Phone number candidates: {0!r}'.format(phones))
         for phone in phones:
-            logging.warn('{id}: Extracted possible phone number {phone}'.format(
+            logging.warning('{id}: Extracted possible phone number {phone}'.format(
                 id=post_id, phone=phone))
         '''
         phone_result = self.check_phones(phones)
@@ -403,8 +403,8 @@ class Halflife ():
                     for url in url_result[':metasmoke_domain_queue'][host]:
                         url_result[url]['metasmoke'] = host_result
                 else:
-                    logging.warn('Domain {0} not extracted by metasmoke'.format(
-                        host))
+                    logging.warning(
+                        'Domain {0} not extracted by metasmoke'.format(host))
 
             for url in url_result:
 
@@ -619,8 +619,8 @@ class Halflife ():
 
                         if response.status_code == 200:
                             if response.url.rstrip('/') != url.rstrip('/'):
-                                logging.warn('`{0}` redirects to `{1}`'.format(
-                                    url, response.url))
+                                logging.warning('`{0}` redirects to `{1}`'
+                                    .format(url, response.url))
                             if '<meta name="generator" content="WordPress' not \
                                     in response.text:
                                 logging.debug('Not a WordPress page apparently')
@@ -651,7 +651,7 @@ class Halflife ():
                                     try:
                                         go_response = _fetch(go_url)
                                     except FetchError as exc:
-                                        logging.warn('Failed to fetch {0} '
+                                        logging.warning('Failed to fetch {0} '
                                             '({1!r})'.format(go_url, exc))
                                         continue
                                     if go_response.url == go_url:
@@ -668,7 +668,7 @@ class Halflife ():
                                         '''
 
                 except FetchError as exc:
-                    logging.warn('Failed to fetch `{0}` ({1!r})'.format(
+                    logging.warning('Failed to fetch `{0}` ({1!r})'.format(
                         url, exc))
 
         return result
@@ -764,7 +764,7 @@ class Halflife ():
                 if wt < self.autoflagging_threshold and \
                         not hit['is_naa'] and not hit['is_fp']:
                     ######## TODO: don't log if it's all FP; include verdicts
-                    logging.warn(
+                    logging.warning(
                         'Post {id} below auto ({weight}) {span} ago'.format(
                             id=hit['id'], weight=wt,
                             span=datetime.datetime.now()-post_date))
@@ -866,7 +866,7 @@ class Halflife ():
 
 if __name__ == '__main__':
     from sys import argv
-    loglevel = logging.WARN
+    loglevel = logging.WARNING
     if '-d' in argv or '--debug' in argv:
         loglevel = logging.DEBUG
     logging.basicConfig(
