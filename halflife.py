@@ -120,6 +120,7 @@ class Halflife ():
             'goo.gl',
             'lnkd.in',
             't.co',
+            'href.li',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
