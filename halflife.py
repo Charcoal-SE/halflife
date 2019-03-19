@@ -307,6 +307,11 @@ class Halflife ():
                             id=post_id, host=host, tp=hits[':feedback']['tp'],
                             all=hits[':feedback'][':all'],
                             span=hits[':timespan']))
+                    if 'whois' in url_result:
+                        logging.debug('whois {0!r}'.format(url_result['whois']))
+                    else:
+                        logging.debug('no whois in {0!r}'.format(
+                            url_result.keys()))
 
         if not self.msapi.get_post_metainformation(message):
             return None
@@ -402,6 +407,8 @@ class Halflife ():
                         continue
                     for url in url_result[':metasmoke_domain_queue'][host]:
                         url_result[url]['metasmoke'] = host_result
+                        url_result[url]['whois'] = \
+                          message[':domain_id_whois'][domain_id]
                 else:
                     logging.warning(
                         'Domain {0} not extracted by metasmoke'.format(host))
@@ -409,11 +416,12 @@ class Halflife ():
             for url in url_result:
 
                 if url.startswith(':metasmoke'):
+                    logging.debug('Skipping pseudo-URL {0}: {1!r}'.format(
+                        url, url_result[url]))
                     continue
 
                 logging.warning('{id}: Extracted URL `{url}`'.format(
                     id=post_id, url=url))
-
                 if 'domain_check' not in url_result[url]:
                     logging.debug(
                         '{id}: No domain_check result for `{url}`'.format(
@@ -421,7 +429,8 @@ class Halflife ():
                     ######## TODO: maybe check :why here too?
                 else:
                     for host in url_result[url]['domain_check']:
-                        if not url_result[url]['domain_check'][host]:
+                        what = url_result[url]['domain_check'][host]
+                        if not what:
                             if host in message[':why']:
                                 logging.warning('{id}: {host} matched: '
                                     '{why}'.format(id=post_id, host=host,
@@ -431,8 +440,14 @@ class Halflife ():
                                     'or watched'.format(id=post_id, host=host))
                         else:
                             logging.warning('{id}: {host} is {what}'.format(
-                                id=post_id, host=host,
-                                what=url_result[url]['domain_check'][host]))
+                                id=post_id, host=host, what=what))
+
+                        if what and 'blacklisted' in what and (
+                            'whois' not in url_result[url] or
+                                url_result[url]['whois'] is None):
+                            logging.warning(
+                                '{id}: no whois for blacklisted domain {host}'
+                                    .format(id=post_id, host=host))
 
                 if 'request_check' in url_result[url]:
                     status = url_result[url]['request_check'].status_code
