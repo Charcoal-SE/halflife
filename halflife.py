@@ -226,16 +226,18 @@ class Halflife ():
                                 rdns = rdns[0]
                         else:
                             rdns = ''
-                        logging.warning('{id}: {host}: ip {ip} ({rdns})'.format(
-                            id=post_id, host=host, ip=ip, rdns=rdns))
+                        logging.warning(
+                            '{id}: {host}: ip {ip} ({rdns})'.format(
+                                id=post_id, host=host, ip=ip, rdns=rdns))
 
                         if 'asn' in url_result['dns_check']:
-                            asn = url_result['dns_check']['asn']
-                            logging.warning('{id}: {host}: ip {ip} AS {asn} '
-                                '({asname}/{cc})'.format(
-                                    id=post_id, host=host, ip=ip,
+                            for asn in url_result['dns_check']['asn']:
+                                logging.warning(
+                                    '{id}: {host}: ip {ip} AS {asn} '
+                                    '({asname}/{cc})'.format(
+                                        id=post_id, host=host, ip=ip,
                                         asn=asn[0], asname=asn[1]['name'],
-                                            cc=asn[1]['cc']))
+                                        cc=asn[1]['cc']))
 
             if 'tail_check' not in url_result:
                 logging.debug('{id}: no tail from URL `{url}`'.format(
@@ -815,8 +817,12 @@ class Halflife ():
             q = subprocess.run(['dig', '+short', '-t', query, host],
                 check=False, stdout=subprocess.PIPE, universal_newlines=True)
             if q.stdout == '\n':
+                logging.info('_dig({0!r}, {1!r} = []'.format(query, host))
                 return []
-            return q.stdout.rstrip('\n').split('\n')
+            result = q.stdout.rstrip('\n').split('\n')
+            logging.info('_dig({0!r},{1!r}) = {2!r}'.format(
+                query, host, result))
+            return result
 
         def isip (addr):
             for ch in ['.'] + [str(i) for i in range(0,10)]:
@@ -858,22 +864,26 @@ class Halflife ():
                     asn, prefix, cc, registry, alloc_date = \
                         asr[0].strip('"').split(' | ')
                     if asn not in self.ascache:
-                        asquery = 'AS' + asn + '.asn.cymru.com'
-                        asq = _dig('txt', asquery)
-                        if asq == ['']:
-                            logging.warning('AS query for {asquery} failed'
-                                .format(asquery=asquery))
-                        else:
-                            # asn, cc, registry, alloc_date, asname
-                            asfield = asq[0].strip('"').split(' | ')
-                            self.ascache[asn] = {
-                                'cc': asfield[1],
-                                'registry': asfield[2],
-                                'alloc_date': asfield[3],
-                                'name': asfield[4],
+                        asresult = []
+                        for _as in asn.split(' '):
+                            asquery = 'AS' + _as + '.asn.cymru.com'
+                            asq = _dig('txt', asquery)
+                            if asq == ['']:
+                                logging.warning(
+                                    'AS query for {asquery} failed'
+                                    .format(asquery=asquery))
+                            else:
+                                # asn, cc, registry, alloc_date, asname
+                                asfield = asq[0].strip('"').split(' | ')
+                                self.ascache[_as] = {
+                                    'cc': asfield[1],
+                                    'registry': asfield[2],
+                                    'alloc_date': asfield[3],
+                                    'name': asfield[4],
                                 }
-                    ######## FIXME: fugly
-                    result['asn'] = (asn, self.ascache[asn])
+                            asresult.append((_as, self.ascache[_as]))
+                        ######## FIXME: fugly
+                        result['asn'] = asresult
 
         ip6 = _dig('aaaa', host)
         result['aaaa'] = ip6
