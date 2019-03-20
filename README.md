@@ -12,8 +12,10 @@ domain name passes the criteria we have for updating the blacklists.
 
 Results are currently logged to a websocket on
 `ws://ec2-52-208-37-129.eu-west-1.compute.amazonaws.com:8888`
-and relayed by the PulseMonitor bot in the chat room
-[Charcoal Test](https://chat.stackexchange.com/rooms/65945/charcoal-test).
+and relayed by the [PulseMonitor](https://github.com/Charcoal-SE/PulseMonitor)
+bot in the chat room [Charcoal Test][1].
+
+[1]: https://chat.stackexchange.com/rooms/65945/charcoal-test
 
 
 Configuration
