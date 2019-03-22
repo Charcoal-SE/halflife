@@ -449,9 +449,9 @@ class Halflife ():
                         if what and 'blacklisted' in what and (
                             'whois' not in url_result[url] or
                                 url_result[url]['whois'] is None):
-                            logging.warning(
-                                '{id}: no whois for blacklisted domain {host}'
-                                    .format(id=post_id, host=host))
+                            # logging.warning(
+                            #    '{id}: no whois for blacklisted domain {host}'
+                            #         .format(id=post_id, host=host))
                             logging.info('url_result[{0}] is {1!r}'.format(url, url_result[url]))
 
                 if 'request_check' in url_result[url]:
