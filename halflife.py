@@ -181,7 +181,7 @@ class Halflife ():
 
                 # ######## FIXME: quick and dirty, put this in a separate dict?
                 if 'com.appmaster.akash' in items[i]:
-                    logging.warn('ping @tripleee comp.appmaster.akash')
+                    logging.warn('ping @tripleee com.appmaster.akash')
 
                 if not items[i].startswith(
                         ('Body -', 'Title -', 'Username -',
@@ -452,6 +452,7 @@ class Halflife ():
                             logging.warning(
                                 '{id}: no whois for blacklisted domain {host}'
                                     .format(id=post_id, host=host))
+                            logging.info('url_result[{0}] is {1!r}'.format(url, url_result[url]))
 
                 if 'request_check' in url_result[url]:
                     status = url_result[url]['request_check'].status_code
