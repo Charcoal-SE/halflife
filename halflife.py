@@ -181,7 +181,8 @@ class Halflife ():
 
                 # ######## FIXME: quick and dirty, put this in a separate dict?
                 if 'com.appmaster.akash' in items[i]:
-                    logging.warn('ping @tripleee com.appmaster.akash')
+                    logging.warn(
+                        'ping @tripleee @MartijnPieters com.appmaster.akash')
 
                 if not items[i].startswith(
                         ('Body -', 'Title -', 'Username -',
