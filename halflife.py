@@ -5,10 +5,6 @@ import json
 import logging
 import subprocess
 from itertools import groupby
-# requests can trip this exception so we want to trap it
-from urllib3.exceptions import LocationParseError as urllib3LocationParseError,\
-    MaxRetryError as urllib3MaxRetryError
-from socket import gaierror as socketGaiError
 import traceback
 
 import requests
@@ -554,11 +550,7 @@ class Halflife ():
                 self.url_visit_cache[url] = (
                     datetime.datetime.utcnow(), response)
                 return response
-            except (requests.exceptions.ConnectionError,
-                    requests.exceptions.SSLError,
-                    requests.exceptions.TooManyRedirects,
-                    urllib3LocationParseError, urllib3MaxRetryError,
-                    socketGaiError, UnicodeError) as exc:
+            except Exception as exc:
                 logging.warning('Failed to fetch URL `{0}` ({1!r})'.format(
                     url, exc))
                 raise FetchError(str(exc))
