@@ -57,8 +57,7 @@ class ActionCableClient ():
         #except json.decoder.JSONDecodeError as err:
         except Exception as err:        
             ######## TODO:logging
-            logging.warning('{err} (message {message})'.format(
-                err=err, message=message))
+            logging.warning('%s (message %s)', err, message)
             return            
         if 'type' in arg and arg['type'] in self.type_hooks:
             self.type_hooks[arg['type']](ws, arg)
@@ -75,9 +74,9 @@ class ActionCableClient ():
                     self.message_hooks[key](ws, arg)
                     break
             else:
-                logging.warning('unrecognized message {arg!r}'.format(arg=arg))
+                logging.warning('unrecognized message %r', arg)
         else:
-            logging.warning('unrecognized message {arg!r}'.format(arg=arg))
+            logging.warning('unrecognized message %r', arg)
 
     def on_ping(self, ws, arg):
         logging.debug('received ping')
@@ -99,22 +98,22 @@ class ActionCableClient ():
         self.sub_id = arg['identifier']
 
     def on_flag (self, ws, arg):
-        logging.info('flag_log {flag}'.format(flag=arg['message']))
+        logging.info('flag_log %s', arg['message'])
 
     def on_feedback (self, ws, arg):
-        logging.info('feedback {feedback}'.format(feedback=arg['message']))
+        logging.info('feedback %s', arg['message'])
 
     def on_delete (self, ws, arg):
-        logging.info('deleted {post}'.format(post=arg['message']))
+        logging.info('deleted %s', arg['message'])
 
     def on_not_flagged (self, ws, arg):
-        logging.info('below auto {post}'.format(post=arg['message']))
+        logging.info('below auto %s', arg['message'])
 
     def on_statistic (self, ws, arg):
-        logging.info('statistic {post}'.format(post=arg['message']))
+        logging.info('statistic %s', arg['message'])
 
     def on_error(self, ws, error):
-        logging.warning('{error}'.format(error=error))
+        logging.warning(error)
 
     def on_close(self, ws):
         logging.info('close')

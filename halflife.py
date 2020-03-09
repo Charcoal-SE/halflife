@@ -27,30 +27,29 @@ class HalflifeClient (ActionCableClient):
         ######## TODO: should perhaps be level=info
         from os import uname
         logging.warning('[Halflife](https://github.com/tripleee/halflife) '
-            '{0} running on {1} started {2} UTC'.format(
+            '%s running on %s started %s UTC',
                 subprocess.run(['git', 'describe', '--always'],
                     stdout=subprocess.PIPE,
                     universal_newlines=True).stdout.strip(),
-            uname().nodename, datetime.datetime.utcnow()))
+            uname().nodename, datetime.datetime.utcnow())
 
     '''
     ######## TODO: remove dead code
     def on_flag (self, ws, arg):
-        logging.info('flag_log {message}'.format(message=arg['message']))
+        logging.info('flag_log %s', arg['message'])
         link = arg['message']['flag_log']['post']['link']
         if link not in self.flagged:
             self.checker.check(arg['message']['flag_log']['post'])
             self.flagged.update([link])
         else:
-            logging.info('Already flagged {link}, not checking again'.format(
-                link=link))
+            logging.info('Already flagged %s, not checking again', link)
 
     def on_not_flagged (self, ws, arg):
-        logging.info('not_flagged {message}'.format(message=arg['message']))
+        logging.info('not_flagged %s', arg['message'])
         self.checker.check(arg['message']['not_flagged']['post'])
     '''
     def on_event_post_create (self, ws, arg):
-        logging.info('event:Post:create {msg}'.format(msg=arg['message']))
+        logging.info('event:Post:create %s', arg['message'])
         if 'object' in arg['message']:
             link = arg['message']['object']['link']
             if link not in self.flagged:
@@ -58,16 +57,14 @@ class HalflifeClient (ActionCableClient):
                     self.checker.check(arg['message']['object'])
                     self.flagged.update([link])
                 except DisabledError as e:
-                    logging.warning('Untrapped DisabledError {0!r}'.format(e))
+                    logging.warning('Untrapped DisabledError %r', e)
                 except Exception as e:
                     traceback.print_exc()
 
             else:
-                logging.info(
-                    'Already flagged {link}, not checking again'.format(
-                        link=link))
+                logging.info('Already flagged %s, not checking again', link)
         else:
-            logging.warning('No "object" in {message}'.format(arg['message']))
+            logging.warning('No "object" in %s', arg['message'])
 
 
 class Halflife ():
@@ -234,17 +231,15 @@ class Halflife ():
             """
             if 'dns_check' not in url_result or \
                     'host' not in url_result['dns_check']:
-                logging.debug('{id}: no dns_check result for `{url}`'
-                    .format(id=post_id, url=url))
+                logging.debug('%s: no dns_check result for `%s`', post_id, url)
             else:
                 host = url_result['dns_check']['host']
                 if url_result['dns_check'][':cached']:
-                    logging.info('{id}: {host}: cached DNS result, '
-                        'not reporting again'.format(id=post_id, host=host))
+                    logging.info('%s: %s: cached DNS result, '
+                        'not reporting again', post_id, host)
                 else:
-                    logging.warning('{id}: {host}: ns {ns}'.format(
-                        id=post_id, host=host,
-                            ns=url_result['dns_check']['ns']))
+                    logging.warning('%s: %s: ns %s',
+                        post_id, host, url_result['dns_check']['ns'])
                     for ip in set(url_result['dns_check']['a']):
                         if ip in set(url_result['dns_check']['rdns']):
                             rdns = url_result['dns_check']['rdns'][ip]
@@ -254,26 +249,20 @@ class Halflife ():
                                 rdns = rdns[0]
                         else:
                             rdns = ''
-                        logging.warning(
-                            '{id}: {host}: ip {ip} ({rdns})'.format(
-                                id=post_id, host=host, ip=ip, rdns=rdns))
+                        logging.warning('%s: %s: ip %s (%s)',
+                            post_id, host, ip, rdns)
 
                         if 'asn' in url_result['dns_check']:
                             for asn in url_result['dns_check']['asn']:
-                                logging.warning(
-                                    '{id}: {host}: ip {ip} AS {asn} '
-                                    '({asname}/{cc})'.format(
-                                        id=post_id, host=host, ip=ip,
-                                        asn=asn[0], asname=asn[1]['name'],
-                                        cc=asn[1]['cc']))
+                                logging.warning('%s: %s: ip %s AS %s (%s/%s)',
+                                    post_id, host, ip,
+                                        asn[0], asn[1]['name'], asn[1]['cc'])
 
             if 'tail_check' not in url_result:
-                logging.debug('{id}: no tail from URL `{url}`'.format(
-                    id=post_id, url=url))
+                logging.debug('%s: no tail from URL `%s`', post_id, url)
             else:
                 for tail, result in url_result['tail_check'].items():
                     if not result:
-
                         tail = tail.lower()
                         if tail in message[':why']:
                             result = 'matched (watched or blacklisted)'
@@ -305,45 +294,36 @@ class Halflife ():
                         tail_re = tail.replace('-', '[^A-Za-z0-9_]?')
                         try:
                             tail_query = self.tp_query(tail_re)
-                            logging.warning('{id}: regex {re} search:'
-                                ' {tp}/{all} hits'.format(
-                                    id=post_id,
-                                    re=tail.replace('-', r'\W?'),
-                                    tp=tail_query['tp_count'],
-                                    all=len(tail_query['hits'])))
+                            logging.warning('%s: regex %s search: %s/%s hits',
+                                post_id, tail.replace('-', r'\W?'),
+                                    tail_query['tp_count'],
+                                        len(tail_query['hits']))
                         except (MetasmokeApiError, DisabledError) as err:
-                            logging.error('Could not perform query for {0}'
-                                ' ({1})'.format(tail_re, err))
+                            logging.error('Could not perform query for %s (%s)',
+                                tail_re, err)
                     '''
                     if not result:
                         result = 'not blacklisted or watched'
                     logging.warning(
-                        '{id}: URL tail {tail} is {result}'.format(
-                            id=post_id, tail=tail, result=result))
+                        '%s: URL tail %s is %s', post_id, tail, result)
 
             if 'metasmoke' not in url_result:
-                logging.debug('{id}: no metasmoke result for `{url}`'
-                    .format(id=post_id, url=url))
+                logging.debug('%s: no metasmoke result for `%s`', post_id, url)
             else:
                 hits = url_result['metasmoke']
                 count = len(hits['items'])
                 if count == 0:
-                    logging.warning('{id}: {host}: No metasmoke hits'.format(
-                        id=post_id, host=host))
+                    logging.warning('%s: %s: No metasmoke hits', post_id, host)
                 elif count == 1:
-                    logging.warning('{id}: {host}: first hit'.format(
-                        id=post_id, host=host))
+                    logging.warning('%s: %s: first hit', post_id, host)
                 else:
-                    logging.warning(
-                        '{id}: {host}: {tp}/{all} over {span}'.format(
-                            id=post_id, host=host, tp=hits[':feedback']['tp'],
-                            all=hits[':feedback'][':all'],
-                            span=hits[':timespan']))
+                    logging.warning('%s: %s: %s/%s over %s', post_id, host,
+                        hits[':feedback']['tp'], hits[':feedback'][':all'],
+                            hits[':timespan'])
                     if 'whois' in url_result:
-                        logging.debug('whois {0!r}'.format(url_result['whois']))
+                        logging.debug('whois %r', url_result['whois'])
                     else:
-                        logging.debug('no whois in {0!r}'.format(
-                            url_result.keys()))
+                        logging.debug('no whois in %r', url_result.keys())
 
         if not self.msapi.get_post_metainformation(message):
             logging.warning('No MS metainformation for %s', message)
@@ -355,55 +335,49 @@ class Halflife ():
         if self.previous_id != None:
             if int(post_id) == self.previous_id:
                 logging.warning(
-                    '{id} already seen; not processing again'.format(post_id))
+                    '%s already seen; not processing again', post_id)
                 return
             # else
             if int(post_id) != self.previous_id+1:
-                logging.warning('[{id}] is not {previous}+1'.format(
-                    id=post_id, previous=self.previous_id))
+                logging.warning('[%s] is not %s+1', post_id, self.previous_id)
         self.previous_id = int(post_id)
 
-        logging.warning('[{id}](https://metasmoke.erwaysoftware.com/post/{id}):'
-            ' Check post [{link}]({link}) ({weight})'.format(
-                id=post_id, link='https://{}'.format(message[':meta']['link']),
-                    weight=weight))
-        logging.debug('url: {url}'.format(url=message['link']))
-        logging.debug('title: {title}'.format(title=message['title']))
-        logging.debug('body: {body}'.format(body=message['body']))
-        logging.debug('username: {user}'.format(user=message['username']))
+        logging.warning('[%s](https://metasmoke.erwaysoftware.com/post/%s):'
+            ' Check post [https://%s](https://%s) (%s)', post_id, post_id,
+                message[':meta']['link'], message[':meta']['link'], weight)
+        logging.debug('url: %s', message['link'])
+        logging.debug('title: %s', message['title'])
+        logging.debug('body: %s', message['body'])
+        logging.debug('username: %s', message['username'])
         message[':why'] = parse_why(message)
 
         ######## TODO: don't hardcode limit
         if weight < 280 and any([x['reason_name'].startswith('Blacklisted ')
                 for x in message[':reasons']]):
             logging.error(
-                '{id}: Blacklisted contents but post still below auto'.format(
-                    id=post_id))
+                '%s: Blacklisted contents but post still below auto', post_id)
 
         cleaned_body = strip_code_blocks(message['body'])
-        logging.info('Body with code blocks stripped is {0!r}'.format(
-            cleaned_body))
+        logging.info('Body with code blocks stripped is %r', cleaned_body)
 
         phones = set(find_phones(cleaned_body))
         phones = phones.union(set(find_phones(message['title'])))
-        logging.info('Phone number candidates: {0!r}'.format(phones))
+        logging.info('Phone number candidates: %r', phones)
         for phone in phones:
-            logging.warning('{id}: Extracted possible phone number {phone}'.format(
-                id=post_id, phone=phone))
+            logging.warning(
+                '%s: Extracted possible phone number %s', post_id, phone)
         '''
         phone_result = self.check_phones(phones)
         for phone in phone_result:
-            logging.warning('{id}: Extracted possible phone number {phone}'
-                .format(id=post_id, phone=phone))
+            logging.warning(
+                '%s: Extracted possible phone number %s', post_id, phone=phone)
             if 'search' not in phone_result[phone]:
-                logging.debug('{id}: no search result for {phone}'
-                    .format(id=post_id, phone=phone))
+                logging.debug('%s: no search result for %s', post_id, phone)
             else:
-                logging.warning('{id}: {phone} search {tp}/{hits} over {time}'
-                    .format(id=post_id, phone=phone,
-                        tp=phone_result[phone]['search']['tp_count'],
-                        hits=len(phone_result[phone]['search']['hits']),
-                        time=phone_result[phone]['search']['timespan']))
+                logging.warning('%s: %s search %s/%s over %s',
+                    post_id, phone, phone_result[phone]['search']['tp_count'],
+                        len(phone_result[phone]['search']['hits']),
+                            phone_result[phone]['search']['timespan'])
         '''
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
@@ -418,9 +392,8 @@ class Halflife ():
         elif 'www.' in cleaned_body:
             urls.update(self.pick_urls(cleaned_body, www=True))
 
-        logging.info('urls are {urls!r}'.format(urls=urls))
-        logging.info('Metasmoke found {urls!r}'.format(
-            urls=message[':domains']))
+        logging.info('urls are %r', urls)
+        logging.info('Metasmoke found %r', message[':domains'])
 
         if len(urls) > 0:
 
@@ -440,8 +413,8 @@ class Halflife ():
                         host_result = self.msapi.domain_query(domain_id)
                     except MetasmokeApiError as err:
                         logging.error(
-                            'Could not perform domain query for {0} ({1})'
-                                .format(host, err))
+                            'Could not perform domain query for %s (%s)',
+                                host, err)
                         continue
                     for url in url_result[':metasmoke_domain_queue'][host]:
                         url_result[url]['metasmoke'] = host_result
@@ -449,57 +422,56 @@ class Halflife ():
                           message[':domain_id_whois'][domain_id]
                 else:
                     logging.warning(
-                        'Domain {0} not extracted by metasmoke'.format(host))
+                        'Domain %s not extracted by metasmoke', host)
 
             for url in url_result:
 
                 if url.startswith(':metasmoke'):
-                    logging.debug('Skipping pseudo-URL {0}: {1!r}'.format(
-                        url, url_result[url]))
+                    logging.debug('Skipping pseudo-URL %s: %r',
+                        url, url_result[url])
                     continue
 
-                logging.warning('{id}: Extracted URL `{url}`'.format(
-                    id=post_id, url=url))
+                logging.warning('%s: Extracted URL `%s`', post_id, url)
                 if 'domain_check' not in url_result[url]:
                     logging.debug(
-                        '{id}: No domain_check result for `{url}`'.format(
-                            id=post_id, url=url))
+                        '%s: No domain_check result for `%s`', post_id, url)
                     ######## TODO: maybe check :why here too?
                 else:
                     for host in url_result[url]['domain_check']:
                         what = url_result[url]['domain_check'][host]
                         if not what:
                             if host in message[':why']:
-                                logging.warning('{id}: {host} matched: '
-                                    '{why}'.format(id=post_id, host=host,
-                                        why='; '.join(message[':why'][host])))
+                                logging.warning('%s: %s matched: %s',
+                                    post_id, host,
+                                        '; '.join(message[':why'][host]))
                             else:
-                                logging.error('{id}: {host} is not blacklisted '
-                                    'or watched'.format(id=post_id, host=host))
+                                logging.error(
+                                    '%s: %s is not blacklisted or watched',
+                                        post_id, host)
                         else:
-                            logging.warning('{id}: {host} is {what}'.format(
-                                id=post_id, host=host, what=what))
+                            logging.warning(
+                                '%s: %s is %s', post_id, host, what)
 
                         if what and 'blacklisted' in what and (
                             'whois' not in url_result[url] or
                                 url_result[url]['whois'] is None):
                             # logging.warning(
-                            #    '{id}: no whois for blacklisted domain {host}'
-                            #         .format(id=post_id, host=host))
-                            logging.info('url_result[{0}] is {1!r}'.format(url, url_result[url]))
+                            #    '%s: no whois for blacklisted domain %s'
+                            #         post_id, host)
+                            logging.info(
+                                'url_result[%s] is %r', url, url_result[url])
 
                 if 'request_check' in url_result[url]:
                     status = url_result[url]['request_check'].status_code
                     if status != 200:
-                        logging.warning('{id}: HTTP status {status} for `{url}`'
-                            .format(id=post_id, status=status, url=url))
+                        logging.warning(
+                            '%s: HTTP status %s for `%s`', post_id, status, url)
 
                 if 'go-url' in url_result[url]:
                     for go_url in url_result[url]['go-url']:
                         dest = url_result[url]['go-url'][go_url]
-                        logging.warning('{id}: Wordpress promotion URL `{url}` '
-                            'redirects to `{dest}`'.format(
-                                id=post_id, url=go_url, dest=dest))
+                        logging.warning('%s: Wordpress promotion URL `%s` '
+                            'redirects to `%s`', post_id, go_url, dest)
                         if dest not in url_result and \
                                 dest + '/' not in url_result:
                             url_check = self.check_urls([dest], recurse=False)
@@ -518,8 +490,8 @@ class Halflife ():
             try:
                 result[phone]['search'] = self.phone_query(phone)
             except MetasmokeApiError as err:
-                logging.error('Could not perform phone query for {0} ({1})'
-                    .format(phone, err))
+                logging.error('Could not perform phone query for %s (%s)',
+                    phone, err)
         return result
     '''
 
@@ -535,7 +507,7 @@ class Halflife ():
         # else:
         urls = []
         for frag in string.split('http')[1:]:
-            logging.info('examining fragment {frag}'.format(frag=frag))
+            logging.info('examining fragment %s', frag)
             if frag.startswith('s://') or frag.startswith('://'):
                 candidate = 'http' + frag.split()[0]
                 candidate = candidate.split('">')[0]
@@ -565,9 +537,9 @@ class Halflife ():
             """
             if url in self.url_visit_cache:
                 ######## TODO: make url_visit_cache objects opaque
-                logging.warning('Visited URL at {0};'
-                    ' returning cached result for `{1}`'.format(
-                        self.url_visit_cache[url][0], url))
+                logging.warning(
+                    'Visited URL at %s; returning cached result for `%s`',
+                        self.url_visit_cache[url][0], url)
                 return self.url_visit_cache[url][1]
             try:
                 response = requests.get(url, timeout=20,
@@ -586,16 +558,15 @@ class Halflife ():
                         'Connection': 'keep-alive', # is this safe?
                         'Upgrade-Insecure-Requests': '1',
                         })
-                logging.info('Status {0} for URL `{1}`'.format(
-                    response.status_code, url))
-                logging.debug('Fetched {0}'.format(response.text))
+                logging.info('Status %s for URL `%s`',
+                    response.status_code, url)
+                logging.debug('Fetched %s', response.text)
                 ######## TODO: make url_visit_cache objects opaque
                 self.url_visit_cache[url] = (
                     datetime.datetime.utcnow(), response)
                 return response
             except Exception as exc:
-                logging.warning('Failed to fetch URL `{0}` ({1!r})'.format(
-                    url, exc))
+                logging.warning('Failed to fetch URL `%s` (%r)', url, exc)
                 raise FetchError(str(exc))
 
         seen = set()
@@ -677,8 +648,8 @@ class Halflife ():
 
                         if response.status_code == 200:
                             if response.url.rstrip('/') != url.rstrip('/'):
-                                logging.warning('`{0}` redirects to `{1}`'
-                                    .format(url, response.url))
+                                logging.warning('`%s` redirects to `%s`',
+                                    url, response.url)
                             if '<meta name="generator" content="WordPress' not \
                                     in response.text:
                                 logging.debug('Not a WordPress page apparently')
@@ -690,17 +661,16 @@ class Halflife ():
                                         for surl in self.pick_urls(line):
                                             if surl.endswith('.jpg') or \
                                                     '.jpg?' in surl:
-                                                logging.debug('Skip JPG URL {0}'
-                                                    .format(surl))
+                                                logging.debug(
+                                                    'Skip JPG URL %s', surl)
                                                 continue
                                             if surl.endswith('.png') or \
                                                     '.png?' in surl:
-                                                logging.debug('Skip PNG URL {0}'
-                                                    .format(surl))
+                                                logging.debug(
+                                                    'Skip PNG URL %s', surl)
                                                 continue
                                             srcset_urls.add(surl)
-                                logging.debug('srcset= URLS: {0!r}'.format(
-                                    srcset_urls))
+                                logging.debug('srcset= URLS: %r', srcset_urls)
                                 if len(srcset_urls) > 5:
                                     logging.info(
                                         'List of URLs too long, skipping')
@@ -709,12 +679,12 @@ class Halflife ():
                                     try:
                                         go_response = _fetch(go_url)
                                     except FetchError as exc:
-                                        logging.warning('Failed to fetch {0} '
-                                            '({1!r})'.format(go_url, exc))
+                                        logging.warning(
+                                            'Failed to fetch %s (%r)',
+                                                go_url, exc)
                                         continue
                                     if go_response.url == go_url:
-                                        logging.debug('No redirect {0}'.format(
-                                            go_url))
+                                        logging.debug('No redirect %s', go_url)
                                     else:
                                         if 'go-url' not in result[url]:
                                             result[url]['go-url'] = dict()
@@ -726,8 +696,7 @@ class Halflife ():
                                         '''
 
                 except FetchError as exc:
-                    logging.warning('Failed to fetch `{0}` ({1!r})'.format(
-                        url, exc))
+                    logging.warning('Failed to fetch `%s` (%r)', url, exc)
 
         return result
 
@@ -737,8 +706,7 @@ class Halflife ():
         if escape:
             host_re = host_re.replace('\\', '\\\\')
         try:
-            logging.debug('running {0!r}'.format(
-                ['grep', '-qis', host_re, listfile]))
+            logging.debug('running %r', ['grep', '-qis', host_re, listfile])
             subprocess.run(['grep', '-qis', host_re, listfile], check=True)
             logging.debug('returning True')
             return True
@@ -822,14 +790,11 @@ class Halflife ():
                 if wt < self.autoflagging_threshold and \
                         not hit['is_naa'] and not hit['is_fp']:
                     ######## TODO: don't log if it's all FP; include verdicts
-                    logging.warning(
-                        'Post {id} below auto ({weight}) {span} ago'.format(
-                            id=hit['id'], weight=wt,
-                            span=datetime.datetime.now()-post_date))
+                    logging.warning('Post %s below auto (%s) %s ago',
+                            hit['id'], wt, datetime.datetime.now()-post_date)
                     below_auto += 1
             else:
-                logging.info('{count} results; not getting weights'.format(
-                count=len(hits)))
+                logging.info('%s results; not getting weights', len(hits))
         ######## TODO: properly encapsulate result in a separate object
         if post_date_min and post_date_max:
             timespan = post_date_max - post_date_min
@@ -854,11 +819,10 @@ class Halflife ():
             q = subprocess.run(['dig', '+short', '-t', query, host],
                 check=False, stdout=subprocess.PIPE, universal_newlines=True)
             if q.stdout == '\n':
-                logging.info('_dig({0!r}, {1!r} = []'.format(query, host))
+                logging.info('_dig(%r, %r) = []', query, host)
                 return []
             result = q.stdout.rstrip('\n').split('\n')
-            logging.info('_dig({0!r},{1!r}) = {2!r}'.format(
-                query, host, result))
+            logging.info('_dig(%r, %r) = %r', query, host, result)
             return result
 
         def isip (addr):
@@ -907,8 +871,7 @@ class Halflife ():
                             asq = _dig('txt', asquery)
                             if asq == ['']:
                                 logging.warning(
-                                    'AS query for {asquery} failed'
-                                    .format(asquery=asquery))
+                                    'AS query for %s failed', asquery)
                             else:
                                 # asn, cc, registry, alloc_date, asname
                                 asfield = asq[0].strip('"').split(' | ')

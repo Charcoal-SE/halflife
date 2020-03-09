@@ -28,15 +28,14 @@ class MetasmokeApi():
         else:
             params['filter'] = ''
 
-        logging.info('query: /api/v2/{route} (params: {params})'.format(
-            route=route, params=params))
+        logging.info('query: /api/v2/%s (params: %s)', route, params)
         req = requests.get('{0}{1}'.format(self.baseurl, route), params=params)
         try:
             result = req.json()
-            logging.info('query result: {0!r}'.format(result))
+            logging.info('query result: %r', result)
         except json.decoder.JSONDecodeError:
-            logging.error('Query {0} did not return valid JSON: {1!r}'.format(
-                route, req.text))
+            logging.error(
+                'Query %s did not return valid JSON: %r', route, req.text)
             result = {'error': 'Invalid JSON {0!r}'.format(req.text)}
             raise
         if 'error' in result:
@@ -62,8 +61,8 @@ class MetasmokeApi():
                 message[':weight'] = sum(x['weight'] for x in reasons['items'])
                 return True
             else:
-                logging.warn('No results for posts/{0} (result: {1!r})'.format(
-                    message['id'], meta))
+                logging.warning(
+                    'No results for posts/%s (result: %r)', message['id'], meta)
                 return False
 
     def domain_query(self, domain_id):
@@ -86,9 +85,8 @@ class MetasmokeApi():
 
             count = {'tp': 0, 'fp': 0, 'naa': 0, ':all': 0}
             for feedback in feedbacks['items']:
-                logging.debug('feedback {0} on post {1} is {2}'.format(
-                    feedback['id'], feedback['post_id'],
-                        feedback['feedback_type']))
+                logging.debug('feedback %s on post %s is %s', feedback['id'],
+                    feedback['post_id'], feedback['feedback_type'])
                 count[':all'] +=1
 
                 ftype_value = feedback['feedback_type']
@@ -97,12 +95,11 @@ class MetasmokeApi():
                         count[ftype] += 1
                         break
                 else:
-                    logging.warning('feedback {0} on post {1}: unknown type {2}'
-                        .format(feedback['id'], feedback['post_id'],
-                            feedback['feedback_type']))
+                    logging.warning('feedback %s on post %s: unknown type %s',
+                        feedback['id'], feedback['post_id'],
+                            feedback['feedback_type'])
 
-            logging.info('feedback count for post {0}: {1}'.format(
-                item['id'], count))
+            logging.info('feedback count for post %s: %s', item['id'], count)
 
             if count[':all'] > 0 and count['tp']/count[':all'] >= 0.9:
                 domain_feedback['tp'] += 1
