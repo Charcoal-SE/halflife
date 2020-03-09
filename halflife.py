@@ -6,6 +6,7 @@ import logging
 import subprocess
 from itertools import groupby
 import traceback
+import re
 
 import requests
 
@@ -406,11 +407,15 @@ class Halflife ():
         urls = set()
         if 'http://' in message['title'] or 'https://' in message['title']:
             urls.update(self.pick_urls(message['title']))
+        elif 'www.' in message['title']:
+            urls.update(self.pick_urls(message['title'], www=True))
         if '<a href="' in cleaned_body:
             urls.update([frag.split('"')[0]
                 for frag in cleaned_body.split('<a href="')[1:]])
         elif 'http://' in cleaned_body or 'https://' in cleaned_body:
             urls.update(self.pick_urls(cleaned_body))
+        elif 'www.' in cleaned_body:
+            urls.update(self.pick_urls(cleaned_body, www=True))
 
         logging.info('urls are {urls!r}'.format(urls=urls))
         logging.info('Metasmoke found {urls!r}'.format(
@@ -517,10 +522,16 @@ class Halflife ():
         return result
     '''
 
-    def pick_urls(self, string):
+    def pick_urls(self, string, www=False):
         """
-        Very quick and dirty heuristic URL extractor
+        Very quick and dirty heuristic URL extractor.
+
+        With www=True, look for bare host names without a http:// or https://
+        protocol specifier using an even more crude regex.
         """
+        if www:
+            return re.findall(r'(\w+(?:\.\w+)+)(?=\W|$)', string)
+        # else:
         urls = []
         for frag in string.split('http')[1:]:
             logging.info('examining fragment {frag}'.format(frag=frag))
