@@ -346,6 +346,7 @@ class Halflife ():
                             url_result.keys()))
 
         if not self.msapi.get_post_metainformation(message):
+            logging.warning('No MS metainformation for %s', message)
             return None
 
         weight = message[':weight']
