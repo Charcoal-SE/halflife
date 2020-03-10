@@ -574,7 +574,9 @@ class Halflife ():
         for url in urls:
             result[url] = {}
             parts = url.split('/', maxsplit=3)
-            if len(parts) < 4:
+            if len(parts) == 1:
+                parts = ('', '', url, '')
+            elif len(parts) < 4:
                 parts.extend([None] * (4-len(parts)))
             proto, _, host, tail = parts
 
@@ -641,8 +643,14 @@ class Halflife ():
 
             if not whitelisted:
                 try:
+                    if '/' not in url:
+                        logging.debug('Adding http:// in front of bare %s', url)
+                        actual_url = 'http://' + url
+                    else:
+                        actual_url = url
+
                     if recurse:
-                        response = _fetch(url)
+                        response = _fetch(actual_url)
 
                         result[url]['request_check'] = response
 
