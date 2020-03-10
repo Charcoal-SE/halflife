@@ -343,7 +343,7 @@ class Halflife ():
         self.previous_id = int(post_id)
 
         logging.warning('[%s](https://metasmoke.erwaysoftware.com/post/%s):'
-            ' Check post [https://%s](https://%s) (%s)', post_id, post_id,
+            ' Check post [https:%s](https:%s) (%s)', post_id, post_id,
                 message[':meta']['link'], message[':meta']['link'], weight)
         logging.debug('url: %s', message['link'])
         logging.debug('title: %s', message['title'])
