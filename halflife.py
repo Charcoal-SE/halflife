@@ -893,7 +893,7 @@ class Halflife ():
         return result
 
 
-if __name__ == '__main__':
+def main():
     from sys import argv
     loglevel = logging.WARNING
     if '-d' in argv or '--debug' in argv:
@@ -902,4 +902,8 @@ if __name__ == '__main__':
         level=loglevel, format='%(module)s:%(asctime)s:%(message)s')
     with open('halflife.conf', 'r') as conffile:
         conf = json.loads(conffile.read())
-    h = HalflifeClient(key=conf['metasmoke-key'])
+    HalflifeClient(key=conf['metasmoke-key'])
+
+
+if __name__ == '__main__':
+    main()
