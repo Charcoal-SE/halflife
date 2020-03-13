@@ -154,11 +154,15 @@ class Halflife ():
             ]
         self.redirectors = [
             'bit.ly',
-            'tinyurl.com',
+            'clck.ru',
+            'clicky.com',
+            'firsturl.de',
             'goo.gl',
-            'lnkd.in',
-            't.co',
             'href.li',
+            'lnkd.in',
+            'shorturl.at',
+            't.co',
+            'tinyurl.com',
             ]
         ######## TODO: load a pickle?
         self.host_lookup_cache = dict()
