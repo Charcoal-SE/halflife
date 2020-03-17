@@ -153,12 +153,14 @@ class Halflife ():
             'youtube.com',
             ]
         self.redirectors = [
+            '0i.is',
             'bit.ly',
             'clck.ru',
             'clicky.com',
             'firsturl.de',
             'goo.gl',
             'href.li',
+            'is.gd',
             'lnkd.in',
             'shorturl.at',
             't.co',
