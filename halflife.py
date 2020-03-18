@@ -26,7 +26,7 @@ class HalflifeClient (ActionCableClient):
         self.checker = Halflife(key=self.key)
         ######## TODO: should perhaps be level=info
         from os import uname
-        logging.warning('[Halflife](https://github.com/tripleee/halflife) '
+        logging.warning('[Halflife](https://github.com/Charcoal-SE/halflife) '
             '%s running on %s started %s UTC',
                 subprocess.run(['git', 'describe', '--always'],
                     stdout=subprocess.PIPE,
