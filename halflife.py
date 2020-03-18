@@ -139,6 +139,7 @@ class Halflife ():
             'kite.com',
             'learncpp.com',
             'maketecheasier.com',
+            # 'marketwatch.com',  # do not whitelist; prevents _fetch()
             'matplotlib.org',
             'medium.com',
             'merriam-webster.com',
@@ -527,6 +528,16 @@ class Halflife ():
                             url_check = self.check_urls([dest], recurse=False)
                             host_report(url_check[dest], dest, post_id)
 
+                if 'mw-url' in url_result[url]:
+                    for mw_url in url_result[url]['mw-url']:
+                        dest = url_result[url]['mw-url'][mw_url]
+                        logging.warning('%s: MarketWatch URL `%s` '
+                            'links to `%s`', post_id, url, dest)
+                        if dest not in url_result and \
+                                dest + '/' not in url_result:
+                            url_check = self.check_urls([dest], recurse=False)
+                            host_report(url_check[dest], dest, post_id)
+
                 host_report(url_result[url], url, post_id)
 
     '''
@@ -708,10 +719,8 @@ class Halflife ():
                             if response.url.rstrip('/') != url.rstrip('/'):
                                 logging.warning('`%s` redirects to `%s`',
                                     url, response.url)
-                            if '<meta name="generator" content="WordPress' not \
+                            if '<meta name="generator" content="WordPress' \
                                     in response.text:
-                                logging.debug('Not a WordPress page apparently')
-                            else:
                                 logging.debug('Found WordPress <meta> tag')
                                 srcset_urls = set()
                                 for line in response.text.split('\n'):
@@ -733,6 +742,8 @@ class Halflife ():
                                     logging.info(
                                         'List of URLs too long, skipping')
                                     srcset_urls = []
+                                if 'go-url' not in result[url]:
+                                    result[url]['go-url'] = dict()
                                 for go_url in srcset_urls:
                                     try:
                                         go_response = _fetch(go_url)
@@ -742,16 +753,50 @@ class Halflife ():
                                                 go_url, exc)
                                         continue
                                     if go_response.url == go_url:
-                                        logging.debug('No redirect %s', go_url)
+                                        logging.debug(
+                                            'No redirect `%s`', go_url)
                                     else:
-                                        if 'go-url' not in result[url]:
-                                            result[url]['go-url'] = dict()
                                         result[url]['go-url'][
                                             go_url] = go_response.url
                                         '''
                                         result.update(self.check_urls(
                                             [go_response.url], recurse=False))
                                         '''
+
+                            # ######## FIXME: fugly near-duplication of code
+                            elif url.startswith('https://www.marketwatch.com/'
+                                    'press-release/'):
+                                logging.debug('Looking for "article-body" in '
+                                    'retrieved Marketwatch page')
+                                if '<div id="article-body"' in response.text:
+                                    logging.debug('Found "article-body" div')
+                                    dest_urls = set()
+                                    snip = response.text.split(
+                                        '<div id="article-body"')[1].split(
+                                            '\n', 1)[1].split('<div ')[0]
+                                    for line in snip.split('\n'):
+                                        for link in line.split('<a href="')[1:]:
+                                            link = link.split('"', 1)[0]
+                                            dest_urls.add(link)
+                                    logging.debug(
+                                        'Destination URLs: %r', dest_urls)
+                                    if 'mw-url' not in result[url]:
+                                        result[url]['mw-url'] = dict()
+                                    for mw_url in dest_urls:
+                                        try:
+                                            mw_response = _fetch(mw_url)
+                                        except FetchError as exc:
+                                            logging.warning(
+                                                'Failed to fetch `%s` (%r)',
+                                                mw_url, exc)
+                                            continue
+                                        result[url]['mw-url'][
+                                            mw_url] = mw_response.url
+
+                            else:
+                                logging.debug('Not a WordPress page apparently;'
+                                    ' not MarketWatch')
+
 
                 except FetchError as exc:
                     logging.warning('Failed to fetch `%s` (%r)', url, exc)
