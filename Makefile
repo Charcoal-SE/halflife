@@ -14,5 +14,10 @@ websocketd: ../websocketd-alpine/websocketd
 
 
 .PHONY: test
-test:
-	./nst.py nst.json
+test: hlenv
+	./hlenv/bin/python ./nst.py nst.json
+
+hlenv: requirements.txt
+	$(RM) -r $@
+	python3 -m venv $@
+	$@/bin/pip install -r requirements.txt
