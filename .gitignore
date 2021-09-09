@@ -2,3 +2,6 @@ halflife.conf
 __pycache__
 docker-build.log
 websocketd
+watched_*.txt
+blacklisted_*.txt
+bad_keywords.txt
