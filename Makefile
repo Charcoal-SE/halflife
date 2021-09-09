@@ -4,8 +4,19 @@ docker: docker-build.log
 	docker push tripleee/halflife:latest
 
 docker-build.log: Dockerfile halflife.py halflife.conf websocketd test
+	# Check that we are logged in to Docker, so that push can work
+	# https://stackoverflow.com/a/36023944
+	awk '/"auths"/ { auth=1 } \
+		/^[[:space:]]*\}/ { auth=0 } \
+		auth && /"https:\/\/index\.docker\.io\/v1\/":/ { \
+			status=1; exit 0 } \
+		END { if (!status) \
+			  print "No Docker cookie found" >"/dev/stderr";\
+			exit 1-status }' ~/.docker/config.json
+
 	# Check that we don't have unpushed commits
 	! git log --oneline @{u}.. | grep .
+
 	-awk 'END { print $$NF }' $@ | xargs docker rmi
 	docker build -t tripleee/halflife --no-cache . | tee $@
 
