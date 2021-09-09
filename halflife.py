@@ -21,6 +21,14 @@ class FetchError (Exception):
     pass
 
 
+class FetchTooLargeError(FetchError):
+    pass
+
+
+class FetchTimeoutError(FetchError):
+    pass
+
+
 class HalflifeClient (ActionCableClient):
     def location(self, filename="location.txt"):
         """
@@ -603,6 +611,63 @@ class Halflife ():
 
         With recurse=False, don't attempt to fetch.
         '''
+        def _requests_get_timeout(url, timeout=60, maxsize=0):
+            """
+            Like requests.get() but use chunking to implement timeout
+            and max size for fetch.
+
+            maxsize is optional; set to 0 (default) to not have a maximum
+            size for the download.
+            """
+            # https://stackoverflow.com/a/22347526
+            response = requests.get(url, timeout=timeout,
+                # Emulate Firefox, copy/paste from my computer
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; '
+                        'Intel Mac OS X 10.12; rv:58.0) '
+                        'Gecko/20100101 Firefox/58.0',
+                    'Accept': 'text/html,application/xhtml+xml,'
+                        'application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate',
+                    ######## TODO: replace this with something less static?
+                    'Cookie': 'remember_user_token=WyJiYXNlNjQgaW5mb3'
+                        'JtYXRpb24iXSxbImxvdHMgb2YgaXQiXQo=',
+                    'Connection': 'keep-alive', # is this safe?
+                    'Upgrade-Insecure-Requests': '1',
+                    })
+            response.raise_for_status()
+
+            logging.info(
+                'Content-Length: %s from URL %s',
+                response.headers.get('Content-Length'), url)
+
+            size = 0
+            starttime = datetime.datetime.utcnow()
+            maxtime = starttime + datetime.timedelta(seconds=timeout)
+
+            chunksize = 1024
+            chunks = []
+            for chunk in response.iter_content(chunksize):
+                size += len(chunk)
+                chunks.append(chunk)
+
+                if size >= maxsize:
+                    logging.warning(
+                        'Max size %i reached or exceeded for URL %s;'
+                        ' returning first %i bytes' % (
+                            maxsize, url, size))
+                    break
+
+                if datetime.datetime.utcnow() > maxtime:
+                    logging.warning(
+                        'Max time %i seconds exceeded for URL %s;'
+                        ' returning first %i bytes' % (
+                            maxtime, url, size))
+                    break
+
+            return response
+
         def _fetch (url):
             """
             Use requests to fetch the URL, pretend to be a browser.
@@ -614,25 +679,12 @@ class Halflife ():
                         self.url_visit_cache[url][0], url)
                 return self.url_visit_cache[url][1]
             try:
-                response = requests.get(url, timeout=20,
-                    # Emulate Firefox, copy/paste from my computer
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Macintosh; '
-                            'Intel Mac OS X 10.12; rv:58.0) '
-                            'Gecko/20100101 Firefox/58.0',
-                        'Accept': 'text/html,application/xhtml+xml,'
-                            'application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'Accept-Encoding': 'gzip, deflate',
-                        ######## TODO: replace this with something less static?
-                        'Cookie': 'remember_user_token=WyJiYXNlNjQgaW5mb3'
-                            'JtYXRpb24iXSxbImxvdHMgb2YgaXQiXQo=',
-                        'Connection': 'keep-alive', # is this safe?
-                        'Upgrade-Insecure-Requests': '1',
-                        })
+                response = _requests_get_timeout(
+                    url, timeout=20, maxsize=1048576)
                 logging.info('Status %s for URL `%s`',
                     response.status_code, url)
-                logging.debug('Fetched %s', response.text)
+                logging.debug(
+                    'Fetched (%i bytes) %r', len(response.text), response.text)
                 ######## TODO: make url_visit_cache objects opaque
                 self.url_visit_cache[url] = (
                     datetime.datetime.utcnow(), response)
