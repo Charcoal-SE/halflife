@@ -7,6 +7,7 @@ import subprocess
 from itertools import groupby
 import traceback
 import re
+from platform import node
 
 import requests
 
@@ -21,6 +22,16 @@ class FetchError (Exception):
 
 
 class HalflifeClient (ActionCableClient):
+    def location(self, filename="location.txt"):
+        """
+        Read location from location.txt, else platform.node()
+        """
+        try:
+            with open(filename) as locationfile:
+                return locationfile.read().strip()
+        except FileNotFoundError:
+            return node()
+
     def init_hook (self):
         self.flagged = set()
         self.checker = Halflife(key=self.key)
@@ -31,7 +42,7 @@ class HalflifeClient (ActionCableClient):
                 subprocess.run(['git', 'describe', '--always'],
                     stdout=subprocess.PIPE,
                     universal_newlines=True).stdout.strip(),
-            uname().nodename, datetime.datetime.utcnow())
+            self.location(), datetime.datetime.utcnow())
 
     '''
     ######## TODO: remove dead code
