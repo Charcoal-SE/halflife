@@ -18,7 +18,8 @@ docker-build.log: Dockerfile halflife.py halflife.conf websocketd test
 	! git log --oneline @{u}.. | grep .
 
 	-awk 'END { print $$NF }' $@ | xargs docker rmi
-	docker build -t tripleee/halflife --no-cache . | tee $@
+	docker build -t tripleee/halflife --progress=plain --no-cache . 2>&1 \
+	| tee $@
 
 websocketd: ../websocketd-alpine/websocketd
 	cp $< $@
